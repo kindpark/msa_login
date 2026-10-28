@@ -25,4 +25,10 @@ public class Users {
     private String name;
     private String role;
     private LocalDateTime createAt;
+
+    // 엔티티는 외부 기술(PasswordEncoder 등)을 몰라야 함.
+    // 비즈니스 메서드는 순수한 값만 인자로 받아서 변경함.
+    public void changePassword(String newEncodedPassword) {
+        this.passwordHash = newEncodedPassword;
+    }
 }

@@ -37,7 +37,11 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         // 로그인, 회원가입, 상품 조회 등의 퍼블릭 API는 인증 없이 접근 허용
-                        .requestMatchers("/api/v1/users/login", "/api/v1/users/signup", "/api/v1/products/**").permitAll()
+                        .requestMatchers(
+                                "/api/v1/users/signup",
+                                "/api/v1/users/login",
+                                "/api/v1/users/find-id",
+                                "/api/v1/users/find-password").permitAll()
                         // 그 외 모든 요청은 인증 필요
                         .anyRequest().authenticated()
                 );

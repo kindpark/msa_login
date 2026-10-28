@@ -1,6 +1,7 @@
 package com.example.login.service;
 
 import com.example.login.dto.AdminLoginRequest;
+import com.example.login.dto.UpdatePasswordRequestDto;
 import com.example.login.dto.UserSignupRequest;
 import com.example.login.entity.Users;
 import com.example.login.repository.UsersRepository;
@@ -10,6 +11,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true) //읽기 전용으로 조회 성능 향상
@@ -18,6 +21,43 @@ public class UsersService {
 
     private final PasswordEncoder passwordEncoder;
 
+    // 아이디(이메일) 찾기
+    public String findEmailByName(String name) {
+        Users user = usersRepository.findByName(name)
+                .orElseThrow(() -> new IllegalArgumentException("해당 이름으로 가입된 사람이 없습니다."));
+        return maskEmail(user.getEmail());
+    }
+
+    // 비밀번호 재설정 (임시 비밀번호 생성)
+    @Transactional
+    public String resetPassword(String email, String name) {
+        Users user = usersRepository.findByEmailAndName(email, name)
+                .orElseThrow(() -> new IllegalArgumentException("입력하신 정보와 일치하는 계정이 없습니다.")); // 세미콜론 수정
+
+        String tempPassword = UUID.randomUUID().toString().substring(0, 8);
+        user.changePassword(passwordEncoder.encode(tempPassword));
+        return tempPassword;
+    }
+    // 비밀번호 직접 변경 (마이페이지용)
+    @Transactional
+    public void updatePassword(Long userId, UpdatePasswordRequestDto dto) {
+        Users user = usersRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+
+        if (!passwordEncoder.matches(dto.getCurrentPassword(), user.getPasswordHash())) {
+            throw new IllegalArgumentException("현재 비밀번호가 일치하지 않습니다.");
+        }
+
+        user.changePassword(passwordEncoder.encode(dto.getNewPassword()));
+    }
+    //이메일 마스킹 유틸 메서드
+    private String maskEmail(String email) {
+        int atIndex = email.indexOf("@");
+        if (atIndex <= 3) {
+            return email.substring(0, 1) + "***" + email.substring(atIndex);
+        }
+        return email.substring(0, 3) + "***" + email.substring(atIndex);
+    }
     @Transactional
     public Long signUp(UserSignupRequest request){
         if(usersRepository.existsByEmail(request.getEmail())){
