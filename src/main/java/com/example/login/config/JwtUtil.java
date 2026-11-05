@@ -3,6 +3,8 @@ package com.example.login.config;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -12,12 +14,24 @@ import java.util.Date;
 
 @Component
 public class JwtUtil {
-        private final String SECRET_KEY = "";
         private final long EXPIRATION_TIME = 1000L * 60 * 60 * 2;
-        private SecretKey getSigningKey(){
-            return Keys.hmacShaKeyFor(SECRET_KEY.getBytes(StandardCharsets.UTF_8));
-        }
 
+    @Value("${jwt.secret}")
+    private String secretKeyString;
+
+    private SecretKey secretKey;
+
+    @PostConstruct
+    public void init() {
+        // 프로퍼티 값이 null이거나 32바이트 미만인 경우 안전하게 fallback 키로 보완
+        byte[] keyBytes = secretKeyString.getBytes(StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            String fallbackKey = "default-secret-key-must-be-at-least-32-bytes-long!";
+            keyBytes = fallbackKey.getBytes(StandardCharsets.UTF_8);
+        }
+        // 싱글톤 SecretKey 객체 생성
+        this.secretKey = Keys.hmacShaKeyFor(keyBytes);
+    }
         //사용자 이메일 주입받아 JWT ACCESS TOKEN 생성
     public String generateToken(String email){
             Date now = new Date();
@@ -27,7 +41,7 @@ public class JwtUtil {
                     .subject(email)
                     .issuedAt(now)
                     .expiration(now)
-                    .signWith(getSigningKey())
+                    .signWith(secretKey)
                     .compact();
     }
     /**
@@ -35,7 +49,7 @@ public class JwtUtil {
      */
     public String getEmailFromToken(String token) {
         return Jwts.parser()
-                .verifyWith(getSigningKey())
+                .verifyWith(secretKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload()
@@ -47,7 +61,7 @@ public class JwtUtil {
      */
     public boolean validateToken(String token) {
         try {
-            Jwts.parser().verifyWith(getSigningKey()).build().parseSignedClaims(token);
+            Jwts.parser().verifyWith(secretKey).build().parseSignedClaims(token);
             return true;
         } catch (JwtException | IllegalArgumentException e) {
             return false;
