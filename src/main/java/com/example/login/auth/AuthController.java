@@ -1,36 +1,31 @@
-package com.example.login.controller;
+package com.example.login.auth;
 
-
-import com.example.login.config.JwtUtil;
-import com.example.login.dto.*;
-import com.example.login.entity.Users;
-import com.example.login.repository.UsersRepository;
-import com.example.login.service.UsersService;
+import com.example.login.auth.find.FindIdRequestDto;
+import com.example.login.auth.find.FindIdResponseDto;
+import com.example.login.auth.find.FindPasswordRequestDto;
+import com.example.login.auth.find.FindPasswordResponseDto;
+import com.example.login.auth.update.UpdatePasswordRequestDto;
+import com.example.login.security.JwtUtil;
+import com.example.login.user.Users;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
-public class UsersController {
-    private final UsersRepository usersRepository;
-    private final UsersService usersService;
-    private final JwtUtil jwtUtil;
-    // 1. 회원가입 API (누락되었던 부분 추가)
-    @PostMapping("/signup")
-    public ResponseEntity<String> signup(@RequestBody UserSignupRequest request) {
-        usersService.signUp(request);
-        return ResponseEntity.ok("회원가입 완료");
-    }
+public class AuthController {
 
+    private final AuthService authService;
+    private final JwtUtil jwtUtil;
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody AdminLoginRequest request, HttpServletResponse response){
-        Users users = usersService.login(request.getEmail(), request.getPassword());
+    public ResponseEntity<?> login(
+            @RequestBody LoginRequestDto request,
+            HttpServletResponse response){
+        Users users = authService.login(request.getEmail(), request.getPassword());
         String token = jwtUtil.generateToken("user");
         ResponseCookie cookie = ResponseCookie.from("user_token", token)
                 .httpOnly(true)
@@ -58,14 +53,14 @@ public class UsersController {
     // 아이디(이메일) 찾기
     @PostMapping("/find-id")
     public ResponseEntity<FindIdResponseDto> findId(@RequestBody FindIdRequestDto requestDto) {
-        String maskedEmail = usersService.findEmailByName(requestDto.getName());
+        String maskedEmail = authService.findEmailByName(requestDto.getName());
         return ResponseEntity.ok(new FindIdResponseDto(maskedEmail));
     }
 
     // 비밀번호 재설정
     @PostMapping("/find-password")
     public ResponseEntity<FindPasswordResponseDto> findPassword(@RequestBody FindPasswordRequestDto requestDto) {
-        String tempPassword = usersService.resetPassword(requestDto.getEmail(), requestDto.getName());
+        String tempPassword = authService.resetPassword(requestDto.getEmail(), requestDto.getName());
         return ResponseEntity.ok(new FindPasswordResponseDto(tempPassword));
     }
     //비번 직접 변경
@@ -74,7 +69,7 @@ public class UsersController {
             @RequestParam Long userId, // JWT에서 사용자 PK 추출
             @RequestBody UpdatePasswordRequestDto requestDto) {
 
-        usersService.updatePassword(userId, requestDto);
+        authService.updatePassword(userId, requestDto);
         return ResponseEntity.ok().build();
     }
 }

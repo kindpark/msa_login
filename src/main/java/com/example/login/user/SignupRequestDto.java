@@ -1,11 +1,12 @@
-package com.example.login.dto;
+package com.example.login.user;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
-public class AdminLoginRequest {
+public class SignupRequestDto {
     private String email;
     private String password;
+    private String nickname;
 }

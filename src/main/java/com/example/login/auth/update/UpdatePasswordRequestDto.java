@@ -1,5 +1,4 @@
-// com/example/login/dto/UpdatePasswordRequestDto.java
-package com.example.login.dto;
+package com.example.login.auth.update;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;

@@ -1,4 +1,4 @@
-package com.example.login.dto;
+package com.example.login.auth.find;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;

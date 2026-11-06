@@ -1,11 +1,9 @@
-package com.example.login.service;
+package com.example.login.auth;
 
-import com.example.login.dto.AdminLoginRequest;
-import com.example.login.dto.UpdatePasswordRequestDto;
-import com.example.login.dto.UserSignupRequest;
-import com.example.login.entity.Users;
-import com.example.login.repository.UsersRepository;
-import jakarta.servlet.http.HttpServletResponse;
+import com.example.login.auth.update.UpdatePasswordRequestDto;
+import com.example.login.security.JwtUtil;
+import com.example.login.user.Users;
+import com.example.login.user.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -16,14 +14,15 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true) //읽기 전용으로 조회 성능 향상
-public class UsersService {
-    private final UsersRepository usersRepository;
-
+public class AuthService {
     private final PasswordEncoder passwordEncoder;
+    private final AuthRepository authRepository;
+    //토큰 발급을 위한 jwtutil
+    private final JwtUtil jwtUtil;
 
     // 아이디(이메일) 찾기
     public String findEmailByName(String name) {
-        Users user = usersRepository.findByName(name)
+        Users user = authRepository.findByName(name)
                 .orElseThrow(() -> new IllegalArgumentException("해당 이름으로 가입된 사람이 없습니다."));
         return maskEmail(user.getEmail());
     }
@@ -31,7 +30,7 @@ public class UsersService {
     // 비밀번호 재설정 (임시 비밀번호 생성)
     @Transactional
     public String resetPassword(String email, String name) {
-        Users user = usersRepository.findByEmailAndName(email, name)
+        Users user = authRepository.findByEmailAndName(email, name)
                 .orElseThrow(() -> new IllegalArgumentException("입력하신 정보와 일치하는 계정이 없습니다.")); // 세미콜론 수정
 
         String tempPassword = UUID.randomUUID().toString().substring(0, 8);
@@ -41,7 +40,7 @@ public class UsersService {
     // 비밀번호 직접 변경 (마이페이지용)
     @Transactional
     public void updatePassword(Long userId, UpdatePasswordRequestDto dto) {
-        Users user = usersRepository.findById(userId)
+        Users user = authRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
 
         if (!passwordEncoder.matches(dto.getCurrentPassword(), user.getPasswordHash())) {
@@ -58,26 +57,10 @@ public class UsersService {
         }
         return email.substring(0, 3) + "***" + email.substring(atIndex);
     }
-    @Transactional
-    public Long signUp(UserSignupRequest request){
-        if(usersRepository.existsByEmail(request.getEmail())){
-            throw new IllegalArgumentException("가입하려는 이메일이 존재하는 이메일입니다.");
-
-        }
-        Users user = Users.builder()
-                .email(request.getEmail())
-                .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .name(request.getName())
-                .role("USER")
-                .build();
-
-        Users savedUser = usersRepository.save(user);
-        return savedUser.getId();
-    }
     //로그인
-    public Users login(String email, String password){
+    public TokenResponse login(String email, String password){
         // 1. 이메일 존재 여부 검증
-        Users user = usersRepository.findByEmail(email)
+        Users user = authRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 이메일입니다."));
 
         // 2. 비밀번호 일치 여부 검증 (평문 비밀번호 vs 암호화된 DB 비밀번호)
@@ -85,6 +68,7 @@ public class UsersService {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
         }
 
-        return user; // 검증 통과 시 유저 객체 반환
+        String token = jwtUtil.generateToken(user.getEmail());
+        return new TokenResponse(token, "Bearer"); // 검증 통과 시 유저 객체 반환
     }
 }

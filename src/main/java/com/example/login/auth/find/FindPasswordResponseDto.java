@@ -1,5 +1,4 @@
-// com/example/login/dto/FindPasswordResponseDto.java
-package com.example.login.dto;
+package com.example.login.auth.find;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

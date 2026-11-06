@@ -1,4 +1,4 @@
-package com.example.login.entity;
+package com.example.login.user;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -22,8 +22,7 @@ public class Users {
     private String email;
     @Column(name="password_hash")
     private String passwordHash;
-    private String name;
-    private String role;
+    private String nickname;
     private LocalDateTime createAt;
 
     // 엔티티는 외부 기술(PasswordEncoder 등)을 몰라야 함.
