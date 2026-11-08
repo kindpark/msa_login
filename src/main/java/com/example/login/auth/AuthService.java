@@ -58,7 +58,7 @@ public class AuthService {
         return email.substring(0, 3) + "***" + email.substring(atIndex);
     }
     //로그인
-    public TokenResponse login(String email, String password){
+    public Users login(String email, String password){
         // 1. 이메일 존재 여부 검증
         Users user = authRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 이메일입니다."));
@@ -68,7 +68,6 @@ public class AuthService {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
         }
 
-        String token = jwtUtil.generateToken(user.getEmail());
-        return new TokenResponse(token, "Bearer"); // 검증 통과 시 유저 객체 반환
+        return user; // 검증 통과 시 유저 객체 반환
     }
 }

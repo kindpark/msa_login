@@ -23,6 +23,7 @@ public class Users {
     @Column(name="password_hash")
     private String passwordHash;
     private String nickname;
+    private String role;
     private LocalDateTime createAt;
 
     // 엔티티는 외부 기술(PasswordEncoder 등)을 몰라야 함.

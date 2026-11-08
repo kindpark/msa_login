@@ -19,27 +19,32 @@ public class JwtUtil {
     private String secretKeyString;
 
     private SecretKey secretKey;
-
+    // 32자 검증
     @PostConstruct
     public void init() {
-        // 프로퍼티 값이 null이거나 32바이트 미만인 경우 안전하게 fallback 키로 보완
+        // 빈 문자 및 null 체크
+        if (secretKeyString == null || secretKeyString.isBlank()){
+            throw new IllegalArgumentException("JWT 비밀키가 설정되지 않음.");
+        }
         byte[] keyBytes = secretKeyString.getBytes(StandardCharsets.UTF_8);
-        if (keyBytes.length < 32) {
-            String fallbackKey = "default-secret-key-must-be-at-least-32-bytes-long!";
-            keyBytes = fallbackKey.getBytes(StandardCharsets.UTF_8);
+
+        if (keyBytes.length < 32){
+            throw new IllegalArgumentException("JWT 비밀키는 최소 32바이트 이상이어야 합니다.");
         }
         // 싱글톤 SecretKey 객체 생성
         this.secretKey = Keys.hmacShaKeyFor(keyBytes);
     }
         //사용자 이메일 주입받아 JWT ACCESS TOKEN 생성
-    public String generateToken(String email){
+    public String generateToken(Long id, String nickname, String role){
             Date now = new Date();
             Date validity = new Date(now.getTime() + EXPIRATION_TIME);
 
             return Jwts.builder()
-                    .subject(email)
+                    .subject(String.valueOf(id))
+                    .claim("nickname", nickname)
+                    .claim("role", role)
                     .issuedAt(now)
-                    .expiration(now)
+                    .expiration(validity)
                     .signWith(secretKey)
                     .compact();
     }

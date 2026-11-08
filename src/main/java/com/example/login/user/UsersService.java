@@ -20,7 +20,7 @@ public class UsersService {
         Users user = Users.builder()
                 .email(request.getEmail())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
-                .name(request.getNickname())
+                .nickname(request.getNickname())
                 .role("USER")
                 .build();
 

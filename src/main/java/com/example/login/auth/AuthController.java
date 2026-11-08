@@ -9,6 +9,7 @@ import com.example.login.security.JwtUtil;
 import com.example.login.user.Users;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
@@ -21,25 +22,30 @@ public class AuthController {
 
     private final AuthService authService;
     private final JwtUtil jwtUtil;
+    @Value("${cookie.secure:false}")
+    private boolean cookieSecure;
     @PostMapping("/login")
-    public ResponseEntity<?> login(
+    public ResponseEntity<Void> login(
             @RequestBody LoginRequestDto request,
             HttpServletResponse response){
-        Users users = authService.login(request.getEmail(), request.getPassword());
-        String token = jwtUtil.generateToken("user");
+        Users user = authService.login(request.getEmail(), request.getPassword());
+        String token = jwtUtil.generateToken(
+                        user.getId(),
+                        user.getNickname(),
+                        user.getRole());
         ResponseCookie cookie = ResponseCookie.from("user_token", token)
                 .httpOnly(true)
-                .secure(true)
+                .secure(cookieSecure)
                 .path("/")
                 .maxAge(2*60*60)
                 .sameSite("Strict")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-        return ResponseEntity.ok("로그인 성공");
+        return ResponseEntity.ok().build();
     }
     //로그아웃
     @PostMapping("/logout")
-    public ResponseEntity<?> logout(HttpServletResponse response){
+    public ResponseEntity<Void> logout(HttpServletResponse response){
         ResponseCookie cookie = ResponseCookie.from("user_token")
                 .httpOnly(true)
                 .secure(true)
@@ -48,13 +54,13 @@ public class AuthController {
                 .sameSite("Strict")
                 .build();
         response.addHeader(HttpHeaders.SET_COOKIE, cookie.toString());
-        return ResponseEntity.ok("로그아웃 성공");
+        return ResponseEntity.ok().build();
     }
     // 아이디(이메일) 찾기
     @PostMapping("/find-id")
     public ResponseEntity<FindIdResponseDto> findId(@RequestBody FindIdRequestDto requestDto) {
         String maskedEmail = authService.findEmailByName(requestDto.getName());
-        return ResponseEntity.ok(new FindIdResponseDto(maskedEmail));
+        return ResponseEntity.ok(new FindIdResponseDto(maskedEmail, requestDto.getName()));
     }
 
     // 비밀번호 재설정
