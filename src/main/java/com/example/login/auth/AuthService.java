@@ -1,6 +1,8 @@
 package com.example.login.auth;
 
 import com.example.login.auth.update.UpdatePasswordRequestDto;
+import com.example.login.common.BusinessException;
+import com.example.login.common.ErrorCode;
 import com.example.login.security.JwtUtil;
 import com.example.login.user.Users;
 import com.example.login.user.UsersRepository;
@@ -9,6 +11,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -21,17 +24,18 @@ public class AuthService {
     private final JwtUtil jwtUtil;
 
     // 아이디(이메일) 찾기
-    public String findEmailByName(String name) {
-        Users user = authRepository.findByName(name)
-                .orElseThrow(() -> new IllegalArgumentException("해당 이름으로 가입된 사람이 없습니다."));
-        return maskEmail(user.getEmail());
+    //리스트로 받는 이유: 결과가 여러건일 수도 있다. 우리는 이것 중 정확히 하나만 찾는다.
+    // 빈 닉네임은 FindIdRequestDto 의 @NotBlank 가 컨트롤러 단계에서 막는다
+    public List<String> findEmailsByNickname(String nickname) {
+        return authRepository.findByNickname(nickname).stream()
+                .map(u->maskEmail(u.getEmail())).toList();
     }
 
     // 비밀번호 재설정 (임시 비밀번호 생성)
     @Transactional
-    public String resetPassword(String email, String name) {
-        Users user = authRepository.findByEmailAndName(email, name)
-                .orElseThrow(() -> new IllegalArgumentException("입력하신 정보와 일치하는 계정이 없습니다.")); // 세미콜론 수정
+    public String resetPassword(String email, String nickname) {
+        Users user = authRepository.findByEmailAndNickname(email, nickname)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         String tempPassword = UUID.randomUUID().toString().substring(0, 8);
         user.changePassword(passwordEncoder.encode(tempPassword));
@@ -41,10 +45,10 @@ public class AuthService {
     @Transactional
     public void updatePassword(Long userId, UpdatePasswordRequestDto dto) {
         Users user = authRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 회원입니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
         if (!passwordEncoder.matches(dto.getCurrentPassword(), user.getPasswordHash())) {
-            throw new IllegalArgumentException("현재 비밀번호가 일치하지 않습니다.");
+            throw new BusinessException(ErrorCode.INVALID_CURRENT_PASSWORD);
         }
 
         user.changePassword(passwordEncoder.encode(dto.getNewPassword()));
@@ -58,14 +62,16 @@ public class AuthService {
         return email.substring(0, 3) + "***" + email.substring(atIndex);
     }
     //로그인
+    // 이메일이 없는 경우와 비밀번호가 틀린 경우를 같은 에러로 돌려준다.
+    // 메시지가 다르면 어떤 이메일이 가입되어 있는지 알아낼 수 있기 때문이다.
     public Users login(String email, String password){
         // 1. 이메일 존재 여부 검증
         Users user = authRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 이메일입니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS));
 
         // 2. 비밀번호 일치 여부 검증 (평문 비밀번호 vs 암호화된 DB 비밀번호)
         if (!passwordEncoder.matches(password, user.getPasswordHash())) {
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
+            throw new BusinessException(ErrorCode.INVALID_CREDENTIALS);
         }
 
         return user; // 검증 통과 시 유저 객체 반환

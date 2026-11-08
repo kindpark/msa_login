@@ -1,5 +1,8 @@
 package com.example.login.security;
 
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -10,6 +13,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.CorsUtils;
@@ -19,7 +23,11 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final JwtUtil jwtUtil;
+    private final CustomAuthenticationEntryPoint customAuthenticationEntryPoint;
 
     // 1. 비밀번호 암호화에 사용할 BCryptPasswordEncoder Bean 등록 (UserService 필수)
     @Bean
@@ -40,16 +48,24 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // 1. CORS Preflight(OPTIONS) 요청 전면 허용
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-// 1. OPTIONS (Preflight) 요청 전면 허용 (CorsUtils 대신 HttpMethod.OPTIONS 사용)
-                                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-
-                                // 2. /api/v1/users/ 하위 모든 엔드포인트(signup, login, find-id 등) 허용
-                                .requestMatchers("/api/v1/users/**").permitAll()
+// OPTIONS (Preflight) 요청 전면 허용 (CorsUtils 대신 HttpMethod.OPTIONS 사용)
+                                .requestMatchers(HttpMethod.POST,
+                                        "/api/v1/users/signup",
+                                        "/api/v1/users/login",
+                                        "/api/v1/users/logout",
+                                        "/api/v1/users/find-id",
+                                        "/api/v1/users/password-reset",
+                                        "/api/v1/users/password-reset/confirm").permitAll()
                                 .requestMatchers("/error").permitAll()
                         // 그 외 모든 요청은 인증 필요
                         .anyRequest().authenticated()
-                );
+                )
+        // 수동 필터 추가 (중복 호출이 일어나지 않도록 여기에만 직접 등록)
+                .addFilterBefore(new JwtAuthenticationFilter(jwtUtil), UsernamePasswordAuthenticationFilter.class)
 
+                // 토큰 누락 및 유효하지 않은 인증(401 Unauthorized) 예외 처리 핸들러 연동
+                .exceptionHandling(handler -> handler
+                        .authenticationEntryPoint(customAuthenticationEntryPoint));
         return http.build();
     }
 

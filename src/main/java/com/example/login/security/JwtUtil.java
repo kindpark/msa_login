@@ -71,4 +71,32 @@ public class JwtUtil {
             return false;
         }
     }
+    // 토큰에서 사용자 ID 추출
+    public Long getUserIdFromToken(String token){
+        String subject = Jwts.parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .getSubject();
+        return Long.valueOf(subject);
+    }
+    // 토큰에서 닉네임 추출
+    public String getNicknameFromToken(String token){
+        return Jwts.parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .get("nickname", String.class);
+    }
+    // 토큰에서 역할 추출
+    public String getRoleFromToken(String token) {
+        return Jwts.parser()
+                .verifyWith(secretKey)
+                .build()
+                .parseSignedClaims(token)
+                .getPayload()
+                .get("role", String.class);
+    }
 }
