@@ -8,6 +8,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -23,7 +24,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleBusiness(BusinessException e) {
         return toResponse(ErrorResponse.of(e.getErrorCode()));
     }
-
+    // 경로 값 문자로 받았을때 에러 처리
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException e){
+        return toResponse(ErrorResponse.of(ErrorCode.VALIDATION_ERROR,
+                e.getName() + ": 형식이 올바르지 않습니다."));
+    }
     /** @Valid 검증 실패: 첫 번째로 틀린 필드를 메시지에 담는다. 예) "email: 올바른 형식의 이메일 주소여야 합니다" */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException e) {

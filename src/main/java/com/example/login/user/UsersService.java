@@ -38,4 +38,9 @@ public class UsersService {
 
         return new UserMeResponseDto(user.getId(), user.getEmail(), user.getNickname(), user.getRole());
     }
+
+    // 임시
+    public boolean existsById(Long userId){
+        return usersRepository.existsById(userId);
+    }
 }
