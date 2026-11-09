@@ -2,6 +2,9 @@ package com.example.login.user;
 
 
 import com.example.login.auth.AuthService;
+import com.example.login.common.BusinessException;
+import com.example.login.common.ErrorCode;
+import com.example.login.common.GlobalExceptionHandler;
 import com.example.login.user.SignupRequestDto;
 import com.example.login.security.JwtUtil;
 import jakarta.validation.Valid;
@@ -12,11 +15,14 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
 public class UsersController {
     private final UsersService usersService;
+    private final GlobalExceptionHandler globalExceptionHandler;
     // 1. 회원가입 API (누락되었던 부분 추가)
     @PostMapping("/signup")
     public ResponseEntity<String> signup(
@@ -30,4 +36,11 @@ public class UsersController {
     public ResponseEntity<UserMeResponseDto> getMyInfo(@AuthenticationPrincipal Long userId) {
         return ResponseEntity.ok(usersService.getMyInfo(userId));
     }
+    // 전 유저 조회
+    @GetMapping
+    public ResponseEntity<List<UserResponseDto>> getAllUsers(@RequestParam(required = false) List<Long> ids){
+        return ResponseEntity.ok(usersService.getUsersByIds(ids));
+    }
+    // 본인이 팔로우 중인 유저 조회
+
 }

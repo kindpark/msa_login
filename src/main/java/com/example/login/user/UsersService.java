@@ -8,6 +8,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
+
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true) //읽기 전용으로 조회 성능 향상
@@ -42,5 +44,24 @@ public class UsersService {
     // 임시
     public boolean existsById(Long userId){
         return usersRepository.existsById(userId);
+    }
+
+    // 프론트엔드는 100개씩 나눠서 요청한다. 그보다 많으면 한 번에 너무 큰 IN 쿼리가 나가므로 막는다.
+    private static final int MAX_IDS = 100;
+
+    // 닉네임 일괄 조회: 요청한 ID 중 존재하는 사용자만 공개 정보로 돌려준다
+    public List<UserResponseDto> getUsersByIds(List<Long> ids){
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        if (ids.size() > MAX_IDS) {
+            throw new BusinessException(ErrorCode.TOO_MANY_IDS);
+        }
+        List<UserResponseDto> list = usersRepository.findAllById(ids)
+                .stream()
+                .map(UserResponseDto::from)
+                .toList();
+
+        return list;
     }
 }
