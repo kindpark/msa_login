@@ -16,13 +16,4 @@ import lombok.NoArgsConstructor;
 public class PostRequestDto {
     private String content;
     private String imageUrl;
-/*
-    public static PostRequestDto from(Post save) {
-        return PostRequestDto.builder()
-                .content(save.getContent())
-                .imageUrl(save.getContent())
-                .build();
-    }
-
- */
 }
