@@ -32,13 +32,6 @@ public class PostController {
             @PathVariable Long id){
         return ResponseEntity.ok(postService.getDetailPost(id));
     }
-    /*
-    // 좋아요 토글(이제 필요없음)
-    @GetMapping("/{postId}/likes")
-    public ResponseEntity<PostResponseDto> readDetailPostLike(){
-        return ResponseEntity.ok(postService.getDetailPostLike());
-    }
-    */
 
     //C
     @PostMapping
@@ -63,12 +56,17 @@ public class PostController {
                         userId
                 ));
     }
-    // 댓글 불러오기
+    // 답글 목록 (커서 페이지네이션, 오래된 순)
+// 응답: { posts, nextCursor } — nextCursor 를 다음 요청의 cursor 로 넘기면 이어서 조회, null 이면 끝
+// size: 기본 10, 서비스에서 최대 50 으로 제한
     @GetMapping("/{postId}/replies")
-    public ResponseEntity<List<PostResponseDto>> commentList(
-            @PathVariable Long postId
+    public ResponseEntity<PostPageResponseDto> threadList(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable Long postId,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "10") int size
     ){
-        return ResponseEntity.ok(postService.getReplys(postId));
+        return ResponseEntity.ok(postService.getReplys(userId, postId, cursor, size));
     }
     //수정
     @PutMapping("/{id}")

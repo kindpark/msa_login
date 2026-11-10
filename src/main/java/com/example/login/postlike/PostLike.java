@@ -22,7 +22,7 @@ public class PostLike {
     private Long postId;
     private Long userId;
     @CreationTimestamp
-    @Column(nullable=false, updatable = false)
+    @Column(updatable = false)
     private LocalDateTime likedAt;
 
     public PostLike(Long postId, Long userId){

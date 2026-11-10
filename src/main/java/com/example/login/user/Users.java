@@ -26,14 +26,15 @@ public class Users {
     @Column(nullable = false, length = 20)
     private String role;
 
-    // 기획서 DDL: profile_image_url VARCHAR(500), bio VARCHAR(255), 둘 다 NULL 허용
+    // 기획서에서 profile_image_url VARCHAR(500), bio VARCHAR(255), 둘 다 NULL 허용
     @Column(length = 500)
     private String profileImageUrl;
     @Column(length = 255)
     private String bio;
 
     // 저장할 때 Hibernate 가 현재 시각을 채우고, 이후 수정되지 않게 한다.
-    // nullable = false 는 붙이지 않는다: 이미 있는 계정 행에는 값이 없어 ddl-auto=update 의 컬럼 추가가 실패한다.
+    // nullable = false 는 붙이지 않는다.
+    // 이미 있는 계정 행에는 값이 없어 ddl-auto=update 의 컬럼 추가가 실패한다.
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;

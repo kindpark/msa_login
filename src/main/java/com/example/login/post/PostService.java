@@ -3,9 +3,9 @@ package com.example.login.post;
 import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
 import java.util.List;
 
 @Service
@@ -73,14 +73,30 @@ public class PostService {
     }
     // 댓글과 글의 관계
 
-    // 댓글 목록(마찬가지로 게시판의 댓글을 보는 기능이 아니라, X마냥 피드의 답글을 보는 개념)
+    // 쓰레드 목록(마찬가지로 게시판의 댓글을 보는 기능이 아니라, X마냥 피드의 답글을 보는 개념)
     // 루트 id
     @Transactional(readOnly = true)
-    public List<PostResponseDto> getReplys(Long id){
-        return postRepository.findByParentIdOrderByCreatedAtAsc(id)
-                .stream()
+    public PostPageResponseDto getReplys(
+            Long userId,
+            Long postId,
+            Long cursor,
+            int size){
+        int pageSize = Math.min(Math.max(size, 1), 50);
+        List<Post> row = postRepository.findThread(postId,
+                 cursor, Limit.of(size+1));
+        boolean hasNext = row.size() > pageSize;
+        // 넘치면 버리고 이번분만 남김
+        List<Post> page = hasNext ? row.subList(0, pageSize) : row;
+
+        // 얻기로 한 페이지 수 만큼
+        Long nextCursor = hasNext ? page.get(page.size() - 1).getId() : null;
+
+        // 포스트 수 만큼 페이지 가져옴
+        List<PostResponseDto> posts = page.stream()
                 .map(PostResponseDto::from)
                 .toList();
+        //이것을 반환
+        return new PostPageResponseDto(posts, nextCursor);
     }
     //C
     @Transactional
@@ -131,9 +147,9 @@ public class PostService {
         return PostResponseDto.from(post);
     }
 
-    // 해당 포스트가 존재하는지 탐색, MSA으로 추후에 전환할것이기에 임시
     @Transactional(readOnly = true)
     public Boolean existByPost(Long id){
+
         return postRepository.existsById(id);
     }
 }

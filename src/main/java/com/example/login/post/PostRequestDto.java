@@ -14,6 +14,5 @@ import lombok.NoArgsConstructor;
 public class PostRequestDto {
     @NotBlank
     private String content;
-    @NotBlank
     private String imageUrl;
 }
