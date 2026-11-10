@@ -10,10 +10,10 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
-@Valid
-@NotBlank //빈글 저장 못하게
 @Builder
 public class PostRequestDto {
+    @NotBlank
     private String content;
+    @NotBlank
     private String imageUrl;
 }

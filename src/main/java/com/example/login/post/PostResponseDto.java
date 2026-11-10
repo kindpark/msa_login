@@ -14,6 +14,7 @@ import java.time.LocalDateTime;
 public class PostResponseDto {
     private Long id;
     private Long userId;
+    private Long parentId;
     private String content;
     private String imageUrl;
     private Integer likeCount;
@@ -24,6 +25,7 @@ public class PostResponseDto {
         return PostResponseDto.builder()
                 .id(entity.getId())
                 .userId(entity.getUserId())
+                .parentId(entity.getParentId())
                 .content(entity.getContent())
                 .imageUrl(entity.getImageUrl())
                 .likeCount(entity.getLikeCount())

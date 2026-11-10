@@ -1,9 +1,45 @@
 package com.example.login.postlike;
 
-import lombok.NoArgsConstructor;
+import com.example.login.common.BusinessException;
+import com.example.login.common.ErrorCode;
+import com.example.login.post.PostService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Service
-@NoArgsConstructor
+@RequiredArgsConstructor
 public class PostLikeService {
+
+    private final PostLikeRepository postLikeRepository;
+    private final PostService postService;
+
+    @Transactional
+    public boolean toggle(Long id, Long postId){
+        // 포스트 없으면 에러 반환
+        if(postId == null || !postService.existByPost(postId)){
+            throw new BusinessException((ErrorCode.POST_NOT_FOUND));
+        }
+        // 이미 좋아요를 한 상태에서 누른다면 좋아요를 취소함(모달같은거 안띄움)
+        // 아니면 좋아요 눌려짐
+        // 저장 성공시
+        //eventPublisher.publishEvent(new PostLikeEvent(id, postId);
+        return postLikeRepository.findByIdAndUserId(id, postId)
+                .map(postLike -> {
+                    postLikeRepository.delete(postLike);
+                    return false;
+                })
+                .orElseGet(()->{
+                    postLikeRepository.save(new PostLike(id, postId));
+                    return true;
+                });
+    }
+
+
+    @Transactional(readOnly = true)
+    public List<Long> getPostLikeService(Long postId){
+        return postLikeRepository.findByPostLikeIds(postId);
+    }
 }
