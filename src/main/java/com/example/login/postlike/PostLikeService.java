@@ -3,12 +3,12 @@ package com.example.login.postlike;
 import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
 import com.example.login.post.PostRepository;
-import com.example.login.post.PostService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
@@ -16,12 +16,11 @@ public class PostLikeService {
 
     private final PostLikeRepository postLikeRepository;
     private final PostRepository postRepository;
-    private final PostService postService;
 
     @Transactional
     public boolean toggle(Long postId, Long userId){
         // 포스트 없으면 에러 반환
-        if(postId == null || !postService.existByPost(postId)){
+        if(postId == null || !postRepository.existsById(postId)){
             throw new BusinessException((ErrorCode.POST_NOT_FOUND));
         }
         // 이미 좋아요를 한 상태에서 누른다면 좋아요를 취소함(모달같은거 안띄움)
@@ -43,7 +42,7 @@ public class PostLikeService {
 
 
     @Transactional(readOnly = true)
-    public List<Long> getPostLikeService(Long postId){
-        return postLikeRepository.findByPostId(postId);
+    public Set<Long> getLikePosts(Set<Long> posts, Long userId){
+        return postLikeRepository.findLikedPostIds(posts, userId);
     }
 }

@@ -37,6 +37,7 @@ public class Post {
     private String content;
 
     private String imageUrl;
+
     @Builder.Default
     @Column(nullable=false)
     private Integer likeCount=0;

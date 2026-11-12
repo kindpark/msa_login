@@ -12,6 +12,16 @@ import java.util.List;
 public interface PostRepository extends JpaRepository<Post, Long> {
     List<Post> findByUserId(Long userId);
 
+    List<Post> findAllById(Iterable<Long> ids);
+    //최근 포스트 한 사람들중 포스트아이디,
+
+    @Query("select p.id from Post p" +
+            " where p.userId in :authorIds" +
+            " and p.parentId is null order by p.id desc")
+    List<Long> findRecentPostIdsByAuthors(
+            @Param("authorIds") List<Long> authorIds,
+            Limit size);
+
     // 커서 기반 쓰레드 페이지 조회
     @Query("select p from Post p" +
             " where p.parentId = :parentId" +

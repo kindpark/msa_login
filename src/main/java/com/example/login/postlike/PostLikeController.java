@@ -28,11 +28,15 @@ public class PostLikeController {
             return ResponseEntity.ok(new PostLikeResponseDto(true));
         }
     }
+    /*
     //포스트의 좋아요 누른 사람 보기(추후 사용)
     @GetMapping
     public ResponseEntity<List<Long>> getPostLike(
-            @PathVariable Long userId
+
+            @AuthenticationPrincipal Long userId
     ){
-        return ResponseEntity.ok(postLikeService.getPostLikeService(userId));
+        return ResponseEntity.ok(postLikeService.getLikePosts(posts, userId));
     }
+
+     */
 }

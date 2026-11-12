@@ -17,12 +17,11 @@ public class FeedController {
 
 
     @GetMapping
-    public ResponseEntity<FeedPostResponseDto> feedList(
+    public ResponseEntity<FeedPageResponseDto> feedList(
             @AuthenticationPrincipal Long userId,
             @RequestParam(required = false) Long cursor, //seq,
             /*@RequestParam(required = false) String type,*/
-            PostResponseDto dto,
             @RequestParam(defaultValue="10") int size){
-        return ResponseEntity.ok(feedService.getFeedList(userId, cursor, dto, size));
+        return ResponseEntity.ok(feedService.getFeedList(userId, cursor, size));
     }
 }

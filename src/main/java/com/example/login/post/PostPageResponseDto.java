@@ -17,4 +17,5 @@ public class PostPageResponseDto {
     // null이 붙어 나가기 때문입니다. 역할이 다르면 클래스를 나누는 게 맞습니다.
     private List<PostResponseDto> posts;
     private Long nextCursor;
+
 }

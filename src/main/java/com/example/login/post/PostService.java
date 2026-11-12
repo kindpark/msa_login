@@ -2,6 +2,7 @@ package com.example.login.post;
 
 import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
+import com.example.login.feed.FeedCache;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
@@ -12,6 +13,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PostService {
     private final PostRepository postRepository;
+    private final FeedCache feedCache;
 
     // 내꺼 조회
     @Transactional(readOnly = true)
@@ -19,7 +21,7 @@ public class PostService {
         //내 글목록을 조회
         List<Post> posts = postRepository.findByUserId(userId);
         return posts.stream()
-                .map(PostResponseDto::from)
+                .map(post -> PostResponseDto.from(post, false))
                 .toList();
     }
 
@@ -28,7 +30,7 @@ public class PostService {
     public List<PostResponseDto> getAllPost(){
         return postRepository.findAll()
                 .stream()
-                .map(PostResponseDto::from)
+                .map(post -> PostResponseDto.from(post, false))
                 .toList();
     }
     // 상세 조회
@@ -37,7 +39,7 @@ public class PostService {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
 
-        return PostResponseDto.from(post);
+        return PostResponseDto.from(post, false);
     }
     //좋아요 토글(postlike로 주요 기능 이관)
 
@@ -68,8 +70,9 @@ public class PostService {
         postRepository.increaseComment(parentId);
         //세이브(답글로)
         postRepository.save(post);
+        feedCache.evict(userId);
 
-        return PostResponseDto.from(post);
+        return PostResponseDto.from(post, false);
     }
     // 댓글과 글의 관계
 
@@ -93,7 +96,7 @@ public class PostService {
 
         // 포스트 수 만큼 페이지 가져옴
         List<PostResponseDto> posts = page.stream()
-                .map(PostResponseDto::from)
+                .map(post -> PostResponseDto.from(post, false))
                 .toList();
         //이것을 반환
         return new PostPageResponseDto(posts, nextCursor);
@@ -109,7 +112,8 @@ public class PostService {
                 .imageUrl(dto.getImageUrl())
                 .build();
         Post save = postRepository.save(post);
-        return PostResponseDto.from(save);
+        feedCache.evict(userId);
+        return PostResponseDto.from(save, false);
     }
     //U
     @Transactional
@@ -121,7 +125,8 @@ public class PostService {
                 .orElseThrow(()-> new BusinessException(ErrorCode.POST_NOT_FOUND));
 
         post.update(userId, dto.getContent(), dto.getImageUrl());
-        return PostResponseDto.from(post);
+
+        return PostResponseDto.from(post, false);
     }
     //D
     //soft delete로 방향 수정
@@ -144,7 +149,7 @@ public class PostService {
             postRepository.decreaseComment(post.getParentId());
         }
         // 삭제된 게시글 정보를 DTO로 변환하여 반환
-        return PostResponseDto.from(post);
+        return PostResponseDto.from(post, false);
     }
 
     @Transactional(readOnly = true)
