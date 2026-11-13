@@ -23,14 +23,15 @@ public class PostController {
     }
     // 전체조회
     @GetMapping("/all")
-    public ResponseEntity<List<PostResponseDto>> readAllPosts(){
-        return ResponseEntity.ok(postService.getAllPost());
+    public ResponseEntity<List<PostResponseDto>> readAllPosts(@AuthenticationPrincipal Long userId){
+        return ResponseEntity.ok(postService.getAllPost(userId));
     }
     // 게시글 상세
     @GetMapping("/{id}")
     public ResponseEntity<PostResponseDto> readDetailPost(
-            @PathVariable Long id){
-        return ResponseEntity.ok(postService.getDetailPost(id));
+            @PathVariable Long id,
+            @AuthenticationPrincipal Long userId){
+        return ResponseEntity.ok(postService.getDetailPost(id, userId));
     }
 
     //C

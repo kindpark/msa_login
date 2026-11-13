@@ -8,8 +8,10 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface PostRepository extends JpaRepository<Post, Long> {
+    //회원 탈퇴할때 글을 지우는 처리
     List<Post> findByUserId(Long userId);
 
     List<Post> findAllById(Iterable<Long> ids);
@@ -21,8 +23,46 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     List<Long> findRecentPostIdsByAuthors(
             @Param("authorIds") List<Long> authorIds,
             Limit size);
-
-    // 커서 기반 쓰레드 페이지 조회
+    // 글마다 나의 좋아요가 있는가?
+    // DB의 조건문에 대해선 내가 안배웠으므로..
+    String TEXT_ON_MY_LIKE = "select p as post," +
+            " case when l.id is not null then true else false end as liked"+
+            " from Post p" +
+            " left join PostLike l" +
+            " on l.postId = p.id" +
+            " and l.userId =:viewerId";
+    // 내가 좋아요를 했는지에 대한 여부
+    // 나에 대한 식별
+    @Query(TEXT_ON_MY_LIKE + " where p.id =:id")
+    Optional<PostWithLiked> findByIdWithLiked(
+            @Param("id") Long id,
+            @Param("viewerId") Long viewerId
+    );
+    // 답글 목록 및 답글에 좋아요를 눌렀는가
+    @Query(TEXT_ON_MY_LIKE +
+            " where p.parentId =:parentId" +
+            " and (:cursor is null or p.id > :cursor)" +
+            " order by p.id asc")
+    List<PostWithLiked> findThreadWithLiked(
+        @Param("parentId") Long parentId,
+        @Param("cursor") Long cursor,
+        @Param("viewerId") Long viewerId,
+        Limit limit
+    );
+    // userId 기반 Liked를 찾음
+    @Query(TEXT_ON_MY_LIKE +
+        " where p.userId =:userId" +
+            " order by p.id desc")
+    List<PostWithLiked> findByUserIdWithLiked(
+            @Param("userId") Long userId,
+            @Param("viewerId") Long viewerId
+    );
+    // 모든 글과 내가 좋아요를 눌렀는가
+    @Query(TEXT_ON_MY_LIKE +
+    " order by p.id desc")
+    List<PostWithLiked> findAllWithLiked(
+            @Param("viewerId") Long viewerId);
+    // 커서 기반 쓰레드 페이지 조회, 쓰레드 기반 배치 작업
     @Query("select p from Post p" +
             " where p.parentId = :parentId" +
             " and ( :cursor is null or p.id > :cursor)" +

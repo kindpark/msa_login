@@ -19,27 +19,26 @@ public class PostService {
     @Transactional(readOnly = true)
     public List<PostResponseDto> getMyPost(Long userId){
         //내 글목록을 조회
-        List<Post> posts = postRepository.findByUserId(userId);
+        List<PostWithLiked> posts = postRepository.findByUserIdWithLiked(userId, userId);
         return posts.stream()
-                .map(post -> PostResponseDto.from(post, false))
+                .map(post -> PostResponseDto.from(post.getPost(), post.getLiked()))
                 .toList();
     }
-
     // 전체 조회
     @Transactional(readOnly = true)
-    public List<PostResponseDto> getAllPost(){
-        return postRepository.findAll()
+    public List<PostResponseDto> getAllPost(Long userId){
+        return postRepository.findAllWithLiked(userId)
                 .stream()
-                .map(post -> PostResponseDto.from(post, false))
+                .map(post -> PostResponseDto.from(post.getPost(), post.getLiked()))
                 .toList();
     }
     // 상세 조회
     @Transactional(readOnly = true)
-    public PostResponseDto getDetailPost(Long id){
-        Post post = postRepository.findById(id)
+    public PostResponseDto getDetailPost(Long id, Long userId){
+        PostWithLiked post = postRepository.findByIdWithLiked(id, userId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
-
-        return PostResponseDto.from(post, false);
+        Post getPost = post.getPost();
+        return PostResponseDto.from(getPost, post.getLiked());
     }
     //좋아요 토글(postlike로 주요 기능 이관)
 
@@ -70,7 +69,6 @@ public class PostService {
         postRepository.increaseComment(parentId);
         //세이브(답글로)
         postRepository.save(post);
-        feedCache.evict(userId);
 
         return PostResponseDto.from(post, false);
     }
@@ -85,18 +83,18 @@ public class PostService {
             Long cursor,
             int size){
         int pageSize = Math.min(Math.max(size, 1), 50);
-        List<Post> row = postRepository.findThread(postId,
-                 cursor, Limit.of(size+1));
+        List<PostWithLiked> row = postRepository.findThreadWithLiked(postId,
+                 cursor, userId, Limit.of(pageSize+1));
         boolean hasNext = row.size() > pageSize;
         // 넘치면 버리고 이번분만 남김
-        List<Post> page = hasNext ? row.subList(0, pageSize) : row;
+        List<PostWithLiked> page = hasNext ? row.subList(0, pageSize) : row;
 
         // 얻기로 한 페이지 수 만큼
-        Long nextCursor = hasNext ? page.get(page.size() - 1).getId() : null;
+        Long nextCursor = hasNext ? page.get(page.size() - 1).getPost().getId() : null;
 
         // 포스트 수 만큼 페이지 가져옴
         List<PostResponseDto> posts = page.stream()
-                .map(post -> PostResponseDto.from(post, false))
+                .map(post -> PostResponseDto.from(post.getPost(), post.getLiked()))
                 .toList();
         //이것을 반환
         return new PostPageResponseDto(posts, nextCursor);
@@ -121,12 +119,12 @@ public class PostService {
             Long id,
             Long userId,
             PostRequestDto dto){
-        Post post = postRepository.findById(id)
+        PostWithLiked post = postRepository.findByIdWithLiked(id, userId)
                 .orElseThrow(()-> new BusinessException(ErrorCode.POST_NOT_FOUND));
+        Post getPost = post.getPost();
+        getPost.update(userId, dto.getContent(), dto.getImageUrl());
 
-        post.update(userId, dto.getContent(), dto.getImageUrl());
-
-        return PostResponseDto.from(post, false);
+        return PostResponseDto.from(getPost, post.getLiked());
     }
     //D
     //soft delete로 방향 수정
@@ -147,6 +145,7 @@ public class PostService {
         //원글이 아닐때
         if(post.getParentId() != null){
             postRepository.decreaseComment(post.getParentId());
+            feedCache.evict(userId);
         }
         // 삭제된 게시글 정보를 DTO로 변환하여 반환
         return PostResponseDto.from(post, false);
