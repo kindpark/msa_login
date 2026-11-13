@@ -1,5 +1,6 @@
 package com.example.login.profile;
 
+import com.example.login.user.UserResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -8,18 +9,18 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/profiles")
+@RequestMapping("/api/v1")
 @RequiredArgsConstructor
 public class ProfileController {
 
     private final ProfileService profileService;
 
     @GetMapping("/users/{userId}/profile")
-    public ResponseEntity<ProfileResponseDto> getProfileHeader(
+    public ResponseEntity<List<UserResponseDto>> getProfileHeader(
             @PathVariable Long id,
             @AuthenticationPrincipal Long userId
     ){
-        return ResponseEntity.ok(profileService.getProfileHeaderItem(id, userId));
+        return ResponseEntity.ok(profileService.getProfileHeaderItem(userId));
     }
 
     //
@@ -33,8 +34,8 @@ public class ProfileController {
     }
     // 탭 목록들
     @GetMapping("/users/{userId}/posts")
-    public ResponseEntity<List<ProfileResponseDto>> listTap(){
-        return ResponseEntity.ok(profileService.getListTapItem());
+    public ResponseEntity<List<UserResponseDto>> listTap(Long userId){
+        return ResponseEntity.ok(profileService.getListTapItem(userId));
     }
     // 팔로워
     @GetMapping("/users/{userId}/followers")

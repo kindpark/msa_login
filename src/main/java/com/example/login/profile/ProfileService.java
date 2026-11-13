@@ -5,7 +5,6 @@ import com.example.login.follow.FollowResponseDto;
 import com.example.login.follow.FollowsInfo;
 import com.example.login.user.UserResponseDto;
 import com.example.login.user.Users;
-import com.example.login.user.UsersInfo;
 import com.example.login.user.UsersRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -22,13 +21,11 @@ public class ProfileService {
 
     // 프로필 헤더들을 반환하기 위한것
     @Transactional(readOnly = true)
-    public List<UserResponseDto> getProfileHeaderItem(Long id, Long userId) {
-        // 임시 JPA
-        List<UsersInfo> user = usersRepository.findById(id);
+    public ProfileResponseDto getProfileHeaderItem(Long id, Long userId) {
+        List<Users> user = usersRepository.findById(userId)
+                .stream().toList();
 
-        return user.stream()
-                .map(users -> UserResponseDto.from(users.getUser()))
-                .toList();
+        return ProfileResponseDto.from
     }
 
     @Transactional
@@ -45,9 +42,9 @@ public class ProfileService {
     }
     // 탭 목록 반환을 위한것
     @Transactional(readOnly = true)
-    public List<UserResponseDto> getListTapItem() {
+    public List<UserResponseDto> getListTapItem(Long userId) {
         //임시 JPA
-        List<UsersInfo> user = usersRepository.findById(id);
+        List<Users> user = usersRepository.findById(userId);
 
         return user.stream()
                 .map(users -> UserResponseDto.from(users.getUser()))
@@ -55,9 +52,11 @@ public class ProfileService {
     }
     //팔로워 반환
     @Transactional(readOnly = true)
-    public ProfileResponseDto followerListItem(Long userId, ProfileRequestDto dto) {
+    public ProfileResponseDto followerListItem(
+            Long userId,
+            ProfileRequestDto dto) {
         // 임시 JPA
-        List<FollowsInfo> follow = followRepository.findById();
+        List<FollowsInfo> follow = followRepository.findByFollowerIds(userId);
 
         return follow.stream()
                 .map(follows -> FollowResponseDto.from())
@@ -65,6 +64,9 @@ public class ProfileService {
     }
     // 팔로잉 반환
     @Transactional(readOnly= true)
-    public ProfileResponseDto followingListItem(Long userId, ProfileRequestDto dto) {
+    public ProfileResponseDto followingListItem(
+            Long userId,
+            ProfileRequestDto dto) {
+
     }
 }
