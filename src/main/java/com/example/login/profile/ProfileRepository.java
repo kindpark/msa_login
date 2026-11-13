@@ -1,4 +1,8 @@
 package com.example.login.profile;
 
-public class ProfileRepository {
+
+import org.springframework.data.jpa.repository.JpaRepository;
+
+public interface ProfileRepository extends JpaRepository<ProfileRequestDto, Long> {
+
 }

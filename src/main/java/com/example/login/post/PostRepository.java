@@ -14,6 +14,8 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     //회원 탈퇴할때 글을 지우는 처리
     List<Post> findByUserId(Long userId);
 
+    Long countByUserId(Long userId);
+
     List<Post> findAllById(Iterable<Long> ids);
     //최근 포스트 한 사람들중 포스트아이디,
 
