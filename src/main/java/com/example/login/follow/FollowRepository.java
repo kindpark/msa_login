@@ -1,9 +1,11 @@
 package com.example.login.follow;
 
+import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -24,5 +26,16 @@ public interface FollowRepository extends JpaRepository<Follow, Long> {
     Long countByFollowingId(Long followingId);
 
     boolean existsByFollowerIdAndFollowingId(Long followerId, Long followingId);
+// 첫 페이지 조회
+    List<Follow> findByFollowingIdOrderByIdDesc(Long followingId, Limit limit);
 
+    // ①-2 다음 페이지 조회 (cursor != null 일 때)
+    List<Follow> findByFollowingIdAndIdLessThanOrderByIdDesc(Long followingId, Long cursor, Limit limit);
+
+    // ③ 로그인한 유저(viewerId)가 조회된 팔로워 목록 중 이미 팔로우한 내역 조회
+    List<Follow> findByFollowerIdAndFollowingIdIn(Long followerId, Collection<Long> followingIds);
+
+    List<Follow> findByFollowerIdOrderByIdDesc(Long followerId, Limit limit);
+
+    List<Follow> findByFollowerIdAndIdLessThanOrderByIdDesc(Long followerId, Long cursor, Limit limit);
 }

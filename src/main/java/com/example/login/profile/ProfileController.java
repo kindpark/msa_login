@@ -1,5 +1,6 @@
 package com.example.login.profile;
 
+import com.example.login.follow.FollowPageResponseDto;
 import com.example.login.user.UserResponseDto;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -25,10 +26,10 @@ public class ProfileController {
     }
 
     //
-    @Valid
+
     @PatchMapping("/users/me")
     public ResponseEntity<Void> updateMyProfile(
-        @RequestBody ProfileRequestDto dto,
+        @RequestBody @Valid ProfileRequestDto dto,
         @AuthenticationPrincipal Long userId
     ){
         profileService.updateMyProfile(dto, userId);
@@ -36,18 +37,21 @@ public class ProfileController {
     }
     // 팔로워
     @GetMapping("/users/{targetUserId}/followers")
-    public ResponseEntity<ProfileResponseDto> getFollowers(
+    public ResponseEntity<FollowPageResponseDto> getFollowers(
             @AuthenticationPrincipal Long userId,
-            @RequestBody ProfileRequestDto dto
+            @PathVariable Long targetUserId,
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") int size
     ){
-        return ResponseEntity.ok(profileService.getFollowers(userId, dto));
+        return ResponseEntity.ok(profileService.getFollowerItem(userId, targetUserId, cursor, size));
     }
     // 팔로잉
-    @GetMapping("/users/{targetUserId}/followings")
-    public ResponseEntity<ProfileResponseDto> getFollowings(
+    @GetMapping("/users/me/followings")
+    public ResponseEntity<FollowPageResponseDto> getFollowings(
             @AuthenticationPrincipal Long userId,
-            @RequestBody ProfileRequestDto dto
+            @RequestParam(required = false) Long cursor,
+            @RequestParam(defaultValue = "20") int size
     ){
-        return ResponseEntity.ok(profileService.getFollowings(userId, dto));
+        return ResponseEntity.ok(profileService.getFollowingItem(userId, cursor, size));
     }
 }

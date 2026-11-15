@@ -518,6 +518,19 @@ X 와 Threads 를 섞는다.
 | GET | `/users/{userId}/followers?cursor=&size=` | 팔로워 (공개) |
 | GET | `/users/me/followings?cursor=&size=` | 팔로잉 (본인만) |
 
+팔로워·팔로잉 목록 응답 (최근에 팔로우한 순, `nextCursor` 는 follows 행 id)
+
+```json
+{
+  "users": [
+    { "id": 7, "handle": "tester", "nickname": "테스터", "bio": "소개", "profileImageUrl": null, "followedByMe": true }
+  ],
+  "nextCursor": 5012
+}
+```
+
+`followedByMe` 는 보는 사람 기준의 버튼 상태다. 보는 사람 자신이 목록에 있으면 `null` 이고, 프론트는 그 줄에 버튼을 그리지 않는다.
+
 프로필 헤더 응답
 
 ```json
