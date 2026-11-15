@@ -17,28 +17,27 @@ public class PostService {
 
     // 내꺼 조회
     @Transactional(readOnly = true)
-    public List<PostResponseDto> getMyPost(Long userId){
-        //내 글목록을 조회
-        List<PostWithLiked> posts = postRepository.findByUserIdWithLiked(userId, userId);
-        return posts.stream()
-                .map(post -> PostResponseDto.from(post.getPost(), post.getLiked()))
+    public List<PostResponseDto> getMyPosts(Long userId){
+        //내 글목록을 조회 (글쓴이도 나, 보는 사람도 나)
+        List<PostWithLiked> rows = postRepository.findByUserIdWithLiked(userId, userId);
+        return rows.stream()
+                .map(row -> PostResponseDto.from(row.getPost(), row.getLiked()))
                 .toList();
     }
     // 전체 조회
     @Transactional(readOnly = true)
-    public List<PostResponseDto> getAllPost(Long userId){
-        return postRepository.findAllWithLiked(userId)
+    public List<PostResponseDto> getAllPosts(Long viewerId){
+        return postRepository.findAllWithLiked(viewerId)
                 .stream()
-                .map(post -> PostResponseDto.from(post.getPost(), post.getLiked()))
+                .map(row -> PostResponseDto.from(row.getPost(), row.getLiked()))
                 .toList();
     }
     // 상세 조회
     @Transactional(readOnly = true)
-    public PostResponseDto getDetailPost(Long id, Long userId){
-        PostWithLiked post = postRepository.findByIdWithLiked(id, userId)
+    public PostResponseDto getPost(Long postId, Long viewerId){
+        PostWithLiked row = postRepository.findByIdWithLiked(postId, viewerId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
-        Post getPost = post.getPost();
-        return PostResponseDto.from(getPost, post.getLiked());
+        return PostResponseDto.from(row.getPost(), row.getLiked());
     }
     //좋아요 토글(postlike로 주요 기능 이관)
 
@@ -77,31 +76,31 @@ public class PostService {
     // 쓰레드 목록(마찬가지로 게시판의 댓글을 보는 기능이 아니라, X마냥 피드의 답글을 보는 개념)
     // 루트 id
     @Transactional(readOnly = true)
-    public PostPageResponseDto getReplys(
-            Long userId,
+    public PostPageResponseDto getReplies(
+            Long viewerId,
             Long postId,
             Long cursor,
             int size){
         int pageSize = Math.min(Math.max(size, 1), 50);
-        List<PostWithLiked> row = postRepository.findThreadWithLiked(postId,
-                 cursor, userId, Limit.of(pageSize+1));
-        boolean hasNext = row.size() > pageSize;
+        List<PostWithLiked> rows = postRepository.findThreadWithLiked(postId,
+                 cursor, viewerId, Limit.of(pageSize+1));
+        boolean hasNext = rows.size() > pageSize;
         // 넘치면 버리고 이번분만 남김
-        List<PostWithLiked> page = hasNext ? row.subList(0, pageSize) : row;
+        List<PostWithLiked> page = hasNext ? rows.subList(0, pageSize) : rows;
 
         // 얻기로 한 페이지 수 만큼
         Long nextCursor = hasNext ? page.get(page.size() - 1).getPost().getId() : null;
 
         // 포스트 수 만큼 페이지 가져옴
         List<PostResponseDto> posts = page.stream()
-                .map(post -> PostResponseDto.from(post.getPost(), post.getLiked()))
+                .map(row -> PostResponseDto.from(row.getPost(), row.getLiked()))
                 .toList();
         //이것을 반환
         return new PostPageResponseDto(posts, nextCursor);
     }
     //C
     @Transactional
-    public PostResponseDto createPostItem(
+    public PostResponseDto createPost(
             PostRequestDto dto,
             Long userId){
         Post post = Post.builder()
@@ -109,29 +108,29 @@ public class PostService {
                 .content(dto.getContent())
                 .imageUrl(dto.getImageUrl())
                 .build();
-        Post save = postRepository.save(post);
+        Post saved = postRepository.save(post);
         feedCache.evict(userId);
-        return PostResponseDto.from(save, false);
+        return PostResponseDto.from(saved, false);
     }
     //U
     @Transactional
-    public PostResponseDto updatePostItem(
-            Long id,
+    public PostResponseDto updatePost(
+            Long postId,
             Long userId,
             PostRequestDto dto){
-        PostWithLiked post = postRepository.findByIdWithLiked(id, userId)
+        PostWithLiked row = postRepository.findByIdWithLiked(postId, userId)
                 .orElseThrow(()-> new BusinessException(ErrorCode.POST_NOT_FOUND));
-        Post getPost = post.getPost();
-        getPost.update(userId, dto.getContent(), dto.getImageUrl());
+        Post post = row.getPost();
+        post.update(userId, dto.getContent(), dto.getImageUrl());
 
-        return PostResponseDto.from(getPost, post.getLiked());
+        return PostResponseDto.from(post, row.getLiked());
     }
     //D
     //soft delete로 방향 수정
     @Transactional
-    public PostResponseDto deletePostItem(Long id, Long userId){
+    public PostResponseDto deletePost(Long postId, Long userId){
         // 삭제할 게시글이 존재하는지 확인 및 조회
-        Post post = postRepository.findById(id)
+        Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
 
         // 권한 검증: 게시글의 작성자와 현재 로그인한 유저의 ID가 일치하는지 확인
@@ -152,8 +151,40 @@ public class PostService {
     }
 
     @Transactional(readOnly = true)
-    public Boolean existByPost(Long id){
+    public Boolean existsPost(Long postId){
 
-        return postRepository.existsById(id);
+        return postRepository.existsById(postId);
+    }
+
+    // 탭 목록 반환을 위한것
+    @Transactional(readOnly = true)
+    public PostPageResponseDto getUserPosts(
+            Long userId,
+            Long targetUserId,
+            String tab,
+            Long cursor,
+            int size) {
+        int pageSize = Math.min(Math.max(size, 1), 50);
+        List<PostWithLiked> rows = switch(tab){
+            case "posts" -> postRepository.findUserRootPostsWithCursor(userId, targetUserId, cursor, Limit.of(pageSize+1));
+            case "replies" -> postRepository.findUserRepliesPostsWithCursor(userId, targetUserId, cursor, Limit.of(pageSize+1));
+            case "media" -> postRepository.findUserMediaPostsWithCursor(userId, targetUserId, cursor, Limit.of(pageSize+1));
+            // 추후 제작 예정
+            case "reposts" -> List.of();
+            default -> postRepository.findUserPostsWithCursor(userId, targetUserId, cursor, Limit.of(pageSize+1));
+        };
+        boolean hasNext = rows.size() > pageSize;
+        // 넘치면 버리고 이번분만 남김
+        List<PostWithLiked> page = hasNext ? rows.subList(0, pageSize) : rows;
+
+        // 얻기로 한 페이지 수 만큼
+        Long nextCursor = hasNext ? page.get(page.size() - 1).getPost().getId() : null;
+
+        // 포스트 수 만큼 페이지 가져옴
+        List<PostResponseDto> posts = page.stream()
+                .map(row -> PostResponseDto.from(row.getPost(), row.getLiked()))
+                .toList();
+        // 3. Entity 리스트를 PostPageResponseDto로 변환하여 반환
+        return new PostPageResponseDto(posts, nextCursor);
     }
 }

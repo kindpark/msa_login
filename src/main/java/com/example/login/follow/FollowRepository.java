@@ -14,13 +14,15 @@ public interface FollowRepository extends JpaRepository<Follow, Long> {
     @Query("select f.followingId from Follow f where f.followerId =:followerId")
     List<Long> findFollowingIds(@Param("followerId") Long followerId);
 
+    // 나를 팔로우하는 사람들의 ID 목록 (팔로워) -> 비어있던 @Query 완성
+    @Query("select f.followerId from Follow f where f.followingId = :followingId")
+    List<Long> findFollowerIds(@Param("followingId") Long followingId);
+
+
     Long countByFollowerId(Long followerId);
 
     Long countByFollowingId(Long followingId);
 
     boolean existsByFollowerIdAndFollowingId(Long followerId, Long followingId);
 
-    // 팔로우를 반환
-    @Query()
-    List<Long> findByFollowerIds(Long userId);
 }

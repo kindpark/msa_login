@@ -40,7 +40,7 @@ public class FeedService {
 
     //팔로워 포스트, 좋아요 읽어옴
     @Transactional(readOnly = true)
-    public FeedPageResponseDto getFeedList(
+    public FeedPageResponseDto getFeed(
             Long userId,
             Long cursor,
             int size) {

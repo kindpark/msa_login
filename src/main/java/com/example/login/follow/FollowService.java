@@ -18,31 +18,31 @@ public class FollowService {
     private final UsersService usersService;
 
     @Transactional(readOnly = true)
-    public List<Long> getMyFollowing(Long myId){
-        return followRepository.findFollowingIds(myId);
+    public List<Long> getMyFollowings(Long userId){
+        return followRepository.findFollowingIds(userId);
     }
 
     @Transactional
-    public boolean toggle(Long myId, Long targetId){
-        if(myId.equals(targetId)){
+    public boolean toggle(Long userId, Long targetUserId){
+        if(userId.equals(targetUserId)){
             // 셀프 팔로우 불가
             throw new BusinessException(ErrorCode.SELF_FOLLOW);
         }
-        if(targetId == null || !usersService.existsById(targetId)){
+        if(targetUserId == null || !usersService.existsById(targetUserId)){
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
         // 이미 팔로우 중이면 삭제하고 false 반환
         // 아니면 저장
         // 저장 성공시
-        //eventPublisher.publishEvent(new FollowCreatedEvent(myId, myNickname, targetId));
-        return followRepository.findByFollowerIdAndFollowingId(myId, targetId)
+        //eventPublisher.publishEvent(new FollowCreatedEvent(userId, myNickname, targetUserId));
+        return followRepository.findByFollowerIdAndFollowingId(userId, targetUserId)
                 .map(follow -> {
                     //이미 있으면 삭제
                     followRepository.delete(follow);
                     return false;
                 })
                 .orElseGet(() -> {
-                    followRepository.save(new Follow(myId, targetId));
+                    followRepository.save(new Follow(userId, targetUserId));
                     return true;
                 });
     }

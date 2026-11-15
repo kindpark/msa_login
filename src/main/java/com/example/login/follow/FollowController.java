@@ -18,10 +18,10 @@ public class FollowController {
     public ResponseEntity<FollowResponseDto> toggleFollow(
             // 경로에 있는 targetUserId가 pathvariable이다.
             // 내 아이디는 로그인 기반이므로 Auth..인데 이를 오해함
-            @AuthenticationPrincipal Long id,
+            @AuthenticationPrincipal Long userId,
             @PathVariable Long targetUserId){
         try{
-            boolean result = followService.toggle(id, targetUserId);
+            boolean result = followService.toggle(userId, targetUserId);
             return ResponseEntity.ok(new FollowResponseDto(result));
         }catch(DataIntegrityViolationException e){
             return ResponseEntity.ok(new FollowResponseDto(true));
@@ -29,9 +29,9 @@ public class FollowController {
     }
 
     @GetMapping("/followings")
-    public List<Long> getFollowing(
-            @AuthenticationPrincipal Long id
+    public List<Long> getMyFollowings(
+            @AuthenticationPrincipal Long userId
     ){
-        return followService.getMyFollowing(id);
+        return followService.getMyFollowings(userId);
     }
 }

@@ -1,5 +1,6 @@
 package com.example.login.post;
 
+import com.example.login.user.UserResponseDto;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,36 +17,36 @@ public class PostController {
     private final PostService postService;
     // 내꺼조회
     @GetMapping("/me")
-    public ResponseEntity<List<PostResponseDto>> readOnMyPost(
+    public ResponseEntity<List<PostResponseDto>> getMyPosts(
             @AuthenticationPrincipal Long userId
     ){
-        return ResponseEntity.ok(postService.getMyPost(userId));
+        return ResponseEntity.ok(postService.getMyPosts(userId));
     }
     // 전체조회
     @GetMapping("/all")
-    public ResponseEntity<List<PostResponseDto>> readAllPosts(@AuthenticationPrincipal Long userId){
-        return ResponseEntity.ok(postService.getAllPost(userId));
+    public ResponseEntity<List<PostResponseDto>> getAllPosts(@AuthenticationPrincipal Long userId){
+        return ResponseEntity.ok(postService.getAllPosts(userId));
     }
     // 게시글 상세
-    @GetMapping("/{id}")
-    public ResponseEntity<PostResponseDto> readDetailPost(
-            @PathVariable Long id,
+    @GetMapping("/{postId}")
+    public ResponseEntity<PostResponseDto> getPost(
+            @PathVariable Long postId,
             @AuthenticationPrincipal Long userId){
-        return ResponseEntity.ok(postService.getDetailPost(id, userId));
+        return ResponseEntity.ok(postService.getPost(postId, userId));
     }
 
     //C
     @PostMapping
-    public ResponseEntity<PostResponseDto> writePost(
+    public ResponseEntity<PostResponseDto> createPost(
             @RequestBody PostRequestDto dto,
             @AuthenticationPrincipal Long userId
     ){
-        return ResponseEntity.ok(postService.createPostItem(dto, userId));
+        return ResponseEntity.ok(postService.createPost(dto, userId));
     }
 
     //댓글 작성(댓글이 아니라 X마냥 피드에 답 남기는)
     @PostMapping("/{postId}/replies")
-    public ResponseEntity<PostResponseDto> writeReply(
+    public ResponseEntity<PostResponseDto> createReply(
             @RequestBody @Valid PostRequestDto dto,
             @PathVariable Long postId,
             @AuthenticationPrincipal Long userId
@@ -61,29 +62,28 @@ public class PostController {
 // 응답: { posts, nextCursor } — nextCursor 를 다음 요청의 cursor 로 넘기면 이어서 조회, null 이면 끝
 // size: 기본 10, 서비스에서 최대 50 으로 제한
     @GetMapping("/{postId}/replies")
-    public ResponseEntity<PostPageResponseDto> threadList(
+    public ResponseEntity<PostPageResponseDto> getReplies(
             @AuthenticationPrincipal Long userId,
             @PathVariable Long postId,
             @RequestParam(required = false) Long cursor,
             @RequestParam(defaultValue = "10") int size
     ){
-        return ResponseEntity.ok(postService.getReplys(userId, postId, cursor, size));
+        return ResponseEntity.ok(postService.getReplies(userId, postId, cursor, size));
     }
     //수정
-    @PutMapping("/{id}")
+    @PutMapping("/{postId}")
     public ResponseEntity<PostResponseDto> updatePost(
             @AuthenticationPrincipal Long userId,
-            @PathVariable Long id,
+            @PathVariable Long postId,
             @RequestBody PostRequestDto dto) {
-            return ResponseEntity.ok(postService.updatePostItem(id, userId, dto));
+            return ResponseEntity.ok(postService.updatePost(postId, userId, dto));
     }
     //삭제
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{postId}")
     public ResponseEntity<PostResponseDto> deletePost(
-            @PathVariable Long id,
+            @PathVariable Long postId,
             @AuthenticationPrincipal Long userId
     ){
-        return ResponseEntity.ok(postService.deletePostItem(id, userId));
+        return ResponseEntity.ok(postService.deletePost(postId, userId));
     }
-
 }

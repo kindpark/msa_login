@@ -15,42 +15,37 @@ public class ProfileController {
 
     private final ProfileService profileService;
 
-    @GetMapping("/users/{userId}/profile")
-    public ResponseEntity<List<UserResponseDto>> getProfileHeader(
-            @PathVariable Long id,
+    @GetMapping("/users/{targetUserId}/profile")
+    public ResponseEntity<ProfileResponseDto> getProfile(
+            @PathVariable Long targetUserId,
             @AuthenticationPrincipal Long userId
     ){
-        return ResponseEntity.ok(profileService.getProfileHeaderItem(userId));
+        return ResponseEntity.ok(profileService.getProfile(targetUserId, userId));
     }
 
     //
     @PatchMapping("/users/me")
-    public ResponseEntity<Void> fetchProfileHeader(
+    public ResponseEntity<Void> updateMyProfile(
         @RequestBody ProfileRequestDto dto,
         @AuthenticationPrincipal Long userId
     ){
-        profileService.patchProfileHeader(dto, userId);
+        profileService.updateMyProfile(dto, userId);
         return ResponseEntity.noContent().build();
     }
-    // 탭 목록들
-    @GetMapping("/users/{userId}/posts")
-    public ResponseEntity<List<UserResponseDto>> listTap(Long userId){
-        return ResponseEntity.ok(profileService.getListTapItem(userId));
-    }
     // 팔로워
-    @GetMapping("/users/{userId}/followers")
-    public ResponseEntity<ProfileResponseDto> followerList(
+    @GetMapping("/users/{targetUserId}/followers")
+    public ResponseEntity<ProfileResponseDto> getFollowers(
             @AuthenticationPrincipal Long userId,
             @RequestBody ProfileRequestDto dto
     ){
-        return ResponseEntity.ok(profileService.followerListItem(userId, dto));
+        return ResponseEntity.ok(profileService.getFollowers(userId, dto));
     }
     // 팔로잉
-    @GetMapping("/users/{userId}/followings")
-    public ResponseEntity<ProfileResponseDto> followingList(
+    @GetMapping("/users/{targetUserId}/followings")
+    public ResponseEntity<ProfileResponseDto> getFollowings(
             @AuthenticationPrincipal Long userId,
             @RequestBody ProfileRequestDto dto
     ){
-        return ResponseEntity.ok(profileService.followingListItem(userId, dto));
+        return ResponseEntity.ok(profileService.getFollowings(userId, dto));
     }
 }

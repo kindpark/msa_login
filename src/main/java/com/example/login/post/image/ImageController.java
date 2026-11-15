@@ -31,7 +31,7 @@ public class ImageController {
     }
 
     @GetMapping("/{fileName:.+}")
-    public ResponseEntity<Resource> saveImage(
+    public ResponseEntity<Resource> getImage(
             @PathVariable("fileName") String fileName
     ){
         Resource resource = imageService.loadImageAsResource(fileName);

@@ -47,7 +47,7 @@ public class AuthController {
     }
     // 아이디(이메일) 찾기
     @PostMapping("/find-id")
-    public ResponseEntity<FindIdResponseDto> findId(@Valid @RequestBody FindIdRequestDto requestDto) {
+    public ResponseEntity<FindIdResponseDto> findEmailsByNickname(@Valid @RequestBody FindIdRequestDto requestDto) {
         List<String> emails = authService.
                 findEmailsByNickname(requestDto.getNickname());
         return ResponseEntity.ok(
@@ -56,7 +56,7 @@ public class AuthController {
 /*
     // 비밀번호 재설정
     @PostMapping("/find-password")
-    public ResponseEntity<FindPasswordResponseDto> findPassword(@RequestBody FindPasswordRequestDto requestDto) {
+    public ResponseEntity<FindPasswordResponseDto> resetPassword(@RequestBody FindPasswordRequestDto requestDto) {
         String tempPassword = authService.resetPassword(requestDto.getEmail(), requestDto.getNickname());
         return ResponseEntity.ok(new FindPasswordResponseDto(tempPassword));
     }

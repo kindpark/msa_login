@@ -25,7 +25,7 @@ public class UsersController {
     private final GlobalExceptionHandler globalExceptionHandler;
     // 1. 회원가입 API (누락되었던 부분 추가)
     @PostMapping("/signup")
-    public ResponseEntity<String> signup(
+    public ResponseEntity<String> signUp(
             @Valid @RequestBody SignupRequestDto request) {
         usersService.signUp(request);
         return ResponseEntity.ok("회원가입 완료");
@@ -38,7 +38,7 @@ public class UsersController {
     }
     // 전 유저 조회
     @GetMapping
-    public ResponseEntity<List<UserResponseDto>> getAllUsers(@RequestParam(required = false) List<Long> ids){
+    public ResponseEntity<List<UserResponseDto>> getUsersByIds(@RequestParam(required = false) List<Long> ids){
         return ResponseEntity.ok(usersService.getUsersByIds(ids));
     }
     // 본인이 팔로우 중인 유저 조회
