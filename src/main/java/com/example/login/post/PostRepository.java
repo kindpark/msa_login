@@ -96,16 +96,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             + "where p.id= :id and p.likeCount > 0")
     void decreaseLike(@Param("id") Long id);
 //커서별로 유저 구분
-   @Query(TEXT_ON_MY_LIKE+
-           " where p.userId = :userId" +
-           " and (:cursor is null or p.id < :cursor)" +
-           " order by p.id desc")
-    List<PostWithLiked> findUserPostsWithCursor(
-            @Param("viewerId") Long viewerId,
-           @Param("userId") Long userId,
-           @Param("cursor") Long cursor,
-           Limit pageable
-   );
     // 답글이 아닌 첫글
     @Query(TEXT_ON_MY_LIKE+
             " where p.userId = :userId" +

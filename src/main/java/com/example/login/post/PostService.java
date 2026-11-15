@@ -159,19 +159,22 @@ public class PostService {
     // 탭 목록 반환을 위한것
     @Transactional(readOnly = true)
     public PostPageResponseDto getUserPosts(
-            Long userId,
+            Long viewerId,
             Long targetUserId,
             String tab,
             Long cursor,
             int size) {
+        if(targetUserId == null){
+            throw new BusinessException(ErrorCode.USER_NOT_FOUND);
+        }
         int pageSize = Math.min(Math.max(size, 1), 50);
         List<PostWithLiked> rows = switch(tab){
-            case "posts" -> postRepository.findUserRootPostsWithCursor(userId, targetUserId, cursor, Limit.of(pageSize+1));
-            case "replies" -> postRepository.findUserRepliesPostsWithCursor(userId, targetUserId, cursor, Limit.of(pageSize+1));
-            case "media" -> postRepository.findUserMediaPostsWithCursor(userId, targetUserId, cursor, Limit.of(pageSize+1));
+            case "posts" -> postRepository.findUserRootPostsWithCursor(viewerId, targetUserId, cursor, Limit.of(pageSize+1));
+            case "replies" -> postRepository.findUserRepliesPostsWithCursor(viewerId, targetUserId, cursor, Limit.of(pageSize+1));
+            case "media" -> postRepository.findUserMediaPostsWithCursor(viewerId, targetUserId, cursor, Limit.of(pageSize+1));
             // 추후 제작 예정
             case "reposts" -> List.of();
-            default -> postRepository.findUserPostsWithCursor(userId, targetUserId, cursor, Limit.of(pageSize+1));
+            default -> postRepository.findUserRootPostsWithCursor(viewerId, targetUserId, cursor, Limit.of(pageSize+1));
         };
         boolean hasNext = rows.size() > pageSize;
         // 넘치면 버리고 이번분만 남김

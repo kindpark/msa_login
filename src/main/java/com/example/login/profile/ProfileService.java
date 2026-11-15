@@ -1,5 +1,7 @@
 package com.example.login.profile;
 
+import com.example.login.common.BusinessException;
+import com.example.login.common.ErrorCode;
 import com.example.login.follow.FollowRepository;
 import com.example.login.follow.FollowResponseDto;
 import com.example.login.follow.FollowsInfo;
@@ -14,6 +16,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Objects;
+
 @Service
 @RequiredArgsConstructor
 public class ProfileService {
@@ -22,23 +26,34 @@ public class ProfileService {
     private final FollowRepository followRepository;
     private final PostRepository postRepository;
 
+
     // 프로필 헤더들을 반환하기 위한것
     @Transactional(readOnly = true)
     public ProfileResponseDto getProfile(Long targetUserId, Long viewerId) {
         Users user = usersRepository.findById(targetUserId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 사용자의 정보를 찾을 수 없습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
 
-        return ProfileResponseDto.from(user,
+        return ProfileResponseDto.from(
+                user,
                 viewerId,
-                postRepository,
-                followRepository
+                getFollowerCount(user),
+                getFollowingCount(user),
+                getPostCount(user),
+                getMe(user, viewerId),
+                getFollowedByMe(user, viewerId)
         );
     }
 
     @Transactional
     public void updateMyProfile(ProfileRequestDto dto, Long userId) {
+
         Users user = usersRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("바꿀수 있는 계정 정보가 존재하지 않습니다."));
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+        if(dto.getHandle() != null
+                && !Objects.equals(dto.getHandle(), user.getHandle())
+                && usersRepository.existsByHandle(dto.getHandle())){
+            throw new BusinessException(ErrorCode.DUPLICATE_HANDLE);
+        }
         user.updateUsersInfo(
                 dto.getNickname(),
                 dto.getProfileImageUrl(),
@@ -74,5 +89,29 @@ public class ProfileService {
         return followings.stream()
                 .map(FollowResponseDto::from)
                 .toList();
+    }
+
+
+
+    private Long getFollowingCount(Users user){
+        return followRepository.countByFollowerId(user.getId());
+    }
+
+    private Long getFollowerCount(Users user){
+        return followRepository.countByFollowingId(user.getId());
+    }
+
+    private Long getPostCount(Users user) {
+        return postRepository.countByUserIdAndParentIdIsNull(user.getId());
+    }
+
+    private Boolean getMe(Users user, Long viewerId) {
+        return Objects.equals(viewerId, user.getId());
+    }
+
+    private Boolean getFollowedByMe(Users user, Long viewerId) {
+        boolean me = Objects.equals(viewerId, user.getId());
+        return me ? null : viewerId != null
+                && followRepository.existsByFollowerIdAndFollowingId(viewerId, user.getId());
     }
 }

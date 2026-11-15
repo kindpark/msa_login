@@ -1,6 +1,7 @@
 package com.example.login.profile;
 
 import com.example.login.user.UserResponseDto;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -24,6 +25,7 @@ public class ProfileController {
     }
 
     //
+    @Valid
     @PatchMapping("/users/me")
     public ResponseEntity<Void> updateMyProfile(
         @RequestBody ProfileRequestDto dto,
