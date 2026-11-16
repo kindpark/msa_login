@@ -2,8 +2,10 @@ package com.example.login.post;
 
 import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
+import com.example.login.event.EventMessage;
 import com.example.login.feed.FeedCache;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,6 +16,7 @@ import java.util.List;
 public class PostService {
     private final PostRepository postRepository;
     private final FeedCache feedCache;
+    private final ApplicationEventPublisher eventPublisher;
 
     // 내꺼 조회
     @Transactional(readOnly = true)
@@ -68,6 +71,12 @@ public class PostService {
         postRepository.increaseComment(parentId);
         //세이브(답글로)
         postRepository.save(post);
+
+        eventPublisher.publishEvent(
+                EventMessage.ofReply(userId,
+                        parent.getUserId(),
+                        post.getId(),
+                        parentId));
 
         return PostResponseDto.from(post, false);
     }

@@ -39,7 +39,7 @@ public class FeedCache {
         String zk = zKey(userId);
         // zkey 초기화? 왜 초기화하지?
         // 답 : 이전 내용에는 삭제된 글이나 언팔로우한 사람의 글이 남아 있을 수 있다.
-        // 그대로 ZADD만 하면 이것들이 섞이니까, 지우고 새로 넣는 것입니다.
+        // 그대로 ZADD만 하면 이것들이 섞이니까, 지우고 새로 넣는 것.
         redis.delete(zk);
         // 새로운 아이디의 컬렉션에 담긴 수 만큼 순회를 한다.
         for(Long id : postIdsNewestFirst) {

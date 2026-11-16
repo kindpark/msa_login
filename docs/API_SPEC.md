@@ -570,7 +570,58 @@ X 와 Threads 를 섞는다.
 
 - 모두 **커밋 후** 발행한다.
 - 알림 받을 사람의 id(`parentAuthorId` 등)를 이벤트에 담는다. 알림 서비스는 posts 테이블을 모르기 때문이다.
-- 자기 글에 자기가 한 행동은 알림을 보내지 않는다.
+- 사실로 발행하지만, 알림 서비스가 걸러낸다.
+
+### 9.1 메시지 브로커 📝
+
+**RabbitMQ** 로 정했다 (2026-11-17). Spring 은 `spring-boot-starter-amqp` 를 쓰고, `build.gradle` 의 Kafka 의존성은 지운다.
+
+| 항목 | 값 |
+|---|---|
+| exchange | `sns.events` — topic exchange, durable |
+| routing key | 이벤트 `type` 그대로. 예: `follow.created` |
+| 알림 서비스 큐 | `notification.events` (durable) — `follow.created`, `reply.created`, `like.created`, `repost.created` 를 바인딩 |
+| 처리 실패 | 알림 서비스가 처리하지 못한 메시지는 `notification.events.dlq` 로 보낸다 (dead-letter) |
+| 메시지 | JSON, UTF-8, `content-type: application/json`, persistent |
+| 전달 보장 | **최소 한 번**. 같은 메시지가 두 번 올 수 있으므로 소비자는 `eventId` 로 중복을 거른다 |
+
+### 9.2 이벤트 메시지 형식 📝
+
+모든 이벤트가 같은 모양(봉투)을 쓴다. 알림에 필요 없는 필드는 `null` 이다.
+
+```json
+{
+  "eventId": "6f1c2a1e-0b7c-4c8e-9a4e-1d2f3a4b5c6d",
+  "type": "reply.created",
+  "occurredAt": "2026-11-17T09:30:00Z",
+  "actorId": 7,
+  "recipientId": 8,
+  "postId": 120,
+  "parentId": 101
+}
+```
+
+| 필드 | 타입 | 뜻 |
+|---|---|---|
+| `eventId` | string (UUID) | 이벤트마다 새로 만든다. 중복 제거용 |
+| `type` | string | §9 표의 이벤트 이름 |
+| `occurredAt` | string (ISO-8601, UTC, `Z`) | 커밋된 시각 |
+| `actorId` | number | 행동한 사람 |
+| `recipientId` | number \| null | 알림 받을 사람. 피드 전용 이벤트(`post.created`)는 `null` |
+| `postId` | number \| null | 관련 글 (팔로우는 `null`) |
+| `parentId` | number \| null | 답글일 때 부모 글 |
+
+이벤트별로 채우는 값
+
+| type | actorId | recipientId | postId | parentId |
+|---|---|---|---|---|
+| `follow.created` | followerId | followeeId | null | null |
+| `reply.created` | 답글 쓴 사람 | 부모 글 작성자 | 새 답글 id | 부모 글 id |
+| `like.created` | 누른 사람 | 글 작성자 | 글 id | null |
+| `repost.created` | 재게시한 사람 | 원글 작성자 | 원글 id | null |
+
+- `actorId == recipientId` 이면 **발행하는 쪽(Spring)에서 보내지 않는다**. 알림 서비스도 한 번 더 거른다.
+- 이름(닉네임)은 이벤트에 넣지 않는다. 닉네임은 바뀔 수 있으므로 프론트가 `GET /users?ids=` 로 그때그때 받는다 (게시글 작성자 이름과 같은 방식).
 
 ---
 
@@ -640,6 +691,67 @@ X 와 Threads 를 섞는다.
 **범위 밖**: 인용 재게시, 여러 장 이미지·동영상(이미지 1장 업로드는 §6.9), 외부 SNS(X API) 연동과 리다이렉션, 해시태그, 검색.
 
 **외부 SNS 연동을 하게 되면** (§11): 별도 `integration-service`가 OAuth 토큰(암호화 저장)·rate limit·외부 장애를 맡고, 피드와는 이벤트로만 연결한다. 피드 항목 `type`에 `EXTERNAL`을 추가하면 피드 구조는 그대로 쓸 수 있다. 6단계(서비스 분리) 이후에 진행한다.
+
+---
+
+## 13. 알림 서비스 (notification-service, .NET) 📝
+
+### 13.1 인증
+
+User-Service 가 발급한 JWT 를 **같은 비밀키로 직접 검증**한다. 알림 서비스는 토큰을 발급하지 않는다.
+
+| 항목 | 값 |
+|---|---|
+| 토큰 위치 | 쿠키 `user_token` (httpOnly, `SameSite=Strict`, `Path=/`). `Authorization` 헤더는 쓰지 않는다 |
+| 서명 | HMAC-SHA. jjwt 의 `Keys.hmacShaKeyFor` 는 키 길이로 알고리즘을 고른다 (32~47바이트 HS256, 48~63바이트 HS384, 64바이트 이상 HS512). 알림 서비스는 세 가지를 모두 허용하고 키로 검증한다 |
+| 비밀키 | 환경변수 `JWT_SECRET` — Spring 의 `jwt.secret` 과 **같은 값**. 코드·설정 파일에 적지 않는다 |
+| 사용자 id | 표준 클레임 `sub` (문자열 숫자, 예: `"7"`) |
+| 그 밖의 클레임 | `nickname`, `role`, `iat`, `exp` (만료 검증 필수, 시계 오차 30초 허용) |
+| 실패 | `401 {"code":"UNAUTHORIZED", ...}` |
+
+### 13.2 API
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| GET | `/api/v1/notifications/subscribe` | SSE 구독 (실시간) |
+| GET | `/api/v1/notifications?cursor=&size=` | 지난 알림 목록 (최신순, 커서 = 알림 id) |
+| GET | `/api/v1/notifications/unread-count` | 안 읽은 개수 `{ "count": 3 }` |
+| POST | `/api/v1/notifications/read-all` | 모두 읽음 → `204` |
+| PATCH | `/api/v1/notifications/{id}/read` | 하나 읽음 → `204` (남의 알림이면 `404`) |
+
+알림 한 개
+
+```json
+{ "id": 42, "type": "reply.created", "actorId": 7, "postId": 120, "createdAt": "2026-11-17T09:30:00Z", "read": false }
+```
+
+목록 응답: `{ "notifications": [...], "nextCursor": 30 }`
+
+- 문구("OO님이 답글을 남겼습니다")는 **프론트가** `type` 과 `actorId` 의 현재 닉네임으로 만든다. 서버는 문구를 저장하지 않는다.
+
+### 13.3 SSE 형식
+
+```
+id: 42
+event: notification
+data: {"id":42,"type":"reply.created","actorId":7,"postId":120,"createdAt":"2026-11-17T09:30:00Z","read":false}
+
+: ping
+```
+
+- 이벤트 이름은 `notification`. 15초마다 `: ping` 주석을 보내 프록시가 연결을 끊지 않게 한다.
+- 한 사용자가 여러 탭으로 접속하면 모든 연결에 보낸다.
+- 다시 연결했을 때 놓친 알림은 SSE 로 다시 보내지 않는다. 프론트가 목록 API 로 채운다.
+
+### 13.4 저장
+
+- 알림 서비스 **전용 DB** (예: MySQL `notification_db`). user/post 테이블과 join 하지 않는다.
+- `notifications`: id, recipient_id, type, actor_id, post_id, event_id(unique), is_read, created_at. 인덱스 `(recipient_id, id)`.
+- `event_id` unique 로 같은 이벤트가 두 번 와도 알림은 한 번만 생긴다.
+
+### 13.5 에러
+
+다른 서비스와 같은 `{ "code", "message", "status" }` 형식. 응답 헤더 `X-Trace-Id` 를 붙인다.
 
 ---
 
