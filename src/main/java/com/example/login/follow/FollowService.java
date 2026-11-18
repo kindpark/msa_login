@@ -20,7 +20,6 @@ public class FollowService {
     private final ApplicationEventPublisher eventPublisher;
     @Transactional(readOnly = true)
     public List<Long> getMyFollowings(Long userId){
-
         return followRepository.findFollowingIds(userId);
     }
 

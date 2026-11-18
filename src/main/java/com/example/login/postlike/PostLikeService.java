@@ -7,6 +7,7 @@ import com.example.login.post.Post;
 import com.example.login.post.PostRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ public class PostLikeService {
     private final PostLikeRepository postLikeRepository;
     private final PostRepository postRepository;
     private final ApplicationEventPublisher eventPublisher;
+
     @Transactional
     public boolean toggle(Long postId, Long userId){
         // 포스트 없으면 에러 반환

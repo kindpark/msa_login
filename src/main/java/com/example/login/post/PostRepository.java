@@ -77,21 +77,21 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             @Param("cursor") Long cursor,
             Limit limit);
     // 댓글 계산
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update Post p set p.commentCount = p.commentCount+1 where p.id= :id")
     void increaseComment(@Param("id") Long id);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update Post p set p.commentCount = p.commentCount-1 "
     + "where p.id= :id and p.commentCount > 0")
     void decreaseComment(@Param("id") Long id);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update Post p set p.likeCount = p.likeCount+1" +
             " where p.id= :id")
     void increaseLike(@Param("id") Long id);
 
-    @Modifying(clearAutomatically = true)
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("update Post p set p.likeCount = p.likeCount-1 "
             + "where p.id= :id and p.likeCount > 0")
     void decreaseLike(@Param("id") Long id);

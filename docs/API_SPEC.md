@@ -5,7 +5,7 @@
 | 문서 버전 | v0.3 (2026-11-11) |
 | 대상 | Spring Boot 백엔드 (`com.example.login`), Vue 프론트엔드 |
 | 현재 구조 | 모듈러 모놀리스 (단일 서버 `:8081`, MySQL `user_db`) |
-| 목표 구조 | user-service / post-feed-service / notification-service(.NET) 로 분리 |
+| 목표 구조 | user-service / post-feed-service / notification-service(Spring) 로 분리 |
 
 **상태 표기**
 
@@ -23,7 +23,7 @@
 |---|---|---|
 | user-service | users, follows, 인증(JWT 쿠키) | `auth`, `user`, `follow`, `security` |
 | post-feed-service | posts(답글 포함), post_likes, reposts, 피드(Redis) | `post`, `postlike`, `repost`, `feed` |
-| notification-service (.NET) | notifications | 별도 프로젝트 |
+| notification-service (Spring) | notifications | 별도 프로젝트 (포트 8084) |
 | 공통 | 에러 형식, 예외 처리 | `common` |
 
 **경계 규칙**
@@ -560,16 +560,16 @@ X 와 Threads 를 섞는다.
 
 ## 9. 이벤트 (RabbitMQ 대비) 📝
 
-| 이벤트 | 발행 위치 | 필드 | 소비자 |
-|---|---|---|---|
+| 이벤트            | 발행 위치 | 필드 | 소비자 |
+|----------------|---|---|---|
 | `post.created` | PostService | postId, actorId | 피드 |
-| `reply.created` | PostService | postId, parentId, parentAuthorId, actorId | 피드, 알림(→ parentAuthorId) |
-| `like.created` / `like.deleted` | PostLikeService | postId, postAuthorId, actorId | 피드, 알림(created만) |
-| `repost.created` / `repost.deleted` | RepostService | postId, postAuthorId, actorId | 피드, 알림(created만) |
-| `follow.created` / `follow.deleted` | FollowService | followerId, followeeId | 피드, 알림(created만) |
+| `reply.created` | PostService | actorId, recipientId(부모 글 작성자), postId(새 답글), parentId | 피드, 알림 |
+| `like.created` | PostLikeService | actorId, recipientId(글 작성자), postId | 피드, 알림 |
+| `repost.created` | RepostService | actorId, recipientId(원글 작성자), postId | 피드, 알림 |
+| `follow.created` | FollowService | actorId(팔로우한 사람), recipientId(팔로우 받은 사람) | 피드, 알림 |
 
 - 모두 **커밋 후** 발행한다.
-- 알림 받을 사람의 id(`parentAuthorId` 등)를 이벤트에 담는다. 알림 서비스는 posts 테이블을 모르기 때문이다.
+- 필드 이름과 모양은 §9.2 봉투를 따른다. 알림 받을 사람의 id(`recipientId`)를 이벤트에 담는다. 알림 서비스는 posts 테이블을 모르기 때문이다.
 - 사실로 발행하지만, 알림 서비스가 걸러낸다.
 
 ### 9.1 메시지 브로커 📝
@@ -620,7 +620,7 @@ X 와 Threads 를 섞는다.
 | `like.created` | 누른 사람 | 글 작성자 | 글 id | null |
 | `repost.created` | 재게시한 사람 | 원글 작성자 | 원글 id | null |
 
-- `actorId == recipientId` 이면 **발행하는 쪽(Spring)에서 보내지 않는다**. 알림 서비스도 한 번 더 거른다.
+- `actorId == recipientId`(내 글에 내가 좋아요·답글)여도 **발행한다**. 이벤트는 "일어난 일"이고, 누구에게 알릴지는 알림 서비스가 정한다. 알림 서비스는 `actorId == recipientId` 이면 저장하지 않는다 (셀프 팔로우는 API 에서 막는다).
 - 이름(닉네임)은 이벤트에 넣지 않는다. 닉네임은 바뀔 수 있으므로 프론트가 `GET /users?ids=` 로 그때그때 받는다 (게시글 작성자 이름과 같은 방식).
 
 ---
@@ -685,7 +685,7 @@ X 와 Threads 를 섞는다.
 | 2 | REPLY·LIKE 항목, 취소·언팔로우 시 제거, 캐시 비었을 때 재구성 | 좋아요 취소하면 피드에서 사라짐 |
 | 3 | 재게시 (§6.8) + REPOST 항목 | 재게시가 피드·프로필에 보임 |
 | 4 | 프로필 (§8) | 4개 탭, 프로필 수정 |
-| 5 | 알림 서비스 (.NET, RabbitMQ, SSE) | 답글·좋아요·팔로우 알림 실시간 수신 |
+| 5 | 알림 서비스 (Spring, RabbitMQ, SSE) | 답글·좋아요·팔로우 알림 실시간 수신 |
 | 6 | 서비스 분리 | user / post-feed 별도 기동, `FollowReader` HTTP 구현 |
 
 **범위 밖**: 인용 재게시, 여러 장 이미지·동영상(이미지 1장 업로드는 §6.9), 외부 SNS(X API) 연동과 리다이렉션, 해시태그, 검색.
@@ -694,7 +694,9 @@ X 와 Threads 를 섞는다.
 
 ---
 
-## 13. 알림 서비스 (notification-service, .NET) 📝
+## 13. 알림 서비스 (notification-service) 📝
+
+별도 Spring Boot 프로젝트 (포트 `8084`, DB `notification_db`). 처음에는 .NET 으로 만들었고 Java 로 다시 만들기로 했다 (2026-11-17). 아래 API·이벤트 계약은 언어와 상관없이 같다.
 
 ### 13.1 인증
 
