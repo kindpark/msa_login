@@ -35,12 +35,12 @@ public class RepostService {
 
 
     // 리포스트
-    @Transactional
+    @Transactional(timeout = 2)
     public RepostResponseDto repost(
             Long userId,
             Long postId
     ){
-        Post post = postRepository.findById(postId)
+        Post post = postRepository.findByIdForUpdate(postId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
         Optional<Repost> existing = repostRepository.findByUserIdAndPostId(userId, postId);
         boolean reposted;

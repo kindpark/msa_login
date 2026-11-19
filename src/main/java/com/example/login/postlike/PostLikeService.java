@@ -21,7 +21,7 @@ public class PostLikeService {
     private final PostRepository postRepository;
     private final ApplicationEventPublisher eventPublisher;
 
-    @Transactional
+    @Transactional(timeout=2)
     public boolean toggle(Long postId, Long userId){
         // 포스트 없으면 에러 반환
         if(postId == null){
@@ -29,7 +29,7 @@ public class PostLikeService {
         }
         //Post 엔티티에서 글 작성자 id를 불러오기 위함.
         // 여기서 userId는 글을 보는 사람을 의미
-        Post post = postRepository.findById(postId)
+        Post post = postRepository.findByIdForUpdate(postId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
         // 이미 좋아요를 한 상태에서 누른다면 좋아요를 취소함(모달같은거 안띄움)
         // 아니면 좋아요 눌려짐
