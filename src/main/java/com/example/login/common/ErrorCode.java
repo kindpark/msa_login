@@ -34,6 +34,7 @@ public enum ErrorCode {
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "DUPLICATE_EMAIL", "이미 가입된 이메일입니다."),
     DUPLICATE_RESOURCE(HttpStatus.CONFLICT, "DUPLICATE_RESOURCE", "이미 존재하는 데이터입니다."),
     DUPLICATE_HANDLE(HttpStatus.CONFLICT, "DUPLICATE_HANDLE", "이미 존재하는 핸들입니다."),
+    LOCK_CONFLICT(HttpStatus.CONFLICT, "LOCK_CONFLICT", "다른 요청과 충돌했습니다. 잠시 후 다시 시도해 주세요."),
 
     // 500 INTERNAL SERVER ERROR
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");

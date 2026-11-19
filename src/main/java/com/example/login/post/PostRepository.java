@@ -149,19 +149,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             @Param("cursor") Long cursor,
             Limit pageable
     );
-    // 프로필 재게시 탭
-    @Query(TEXT_ON_MY_LIKE_AND_REPOST +
-            " join Repost rp" +
-            " on rp.postId = p.id" +
-            " where rp.userId =:userId" +
-            " and (:cursor is null or rp.id < :cursor)" +
-            " order by rp.id desc")
-    List<PostWithLiked> findUserRepostPostsWithCursor(
-            @Param("viewerId") Long viewerId,
-            @Param("userId") Long userId,
-            @Param("cursor") Long cursor,
-            Limit pageable
-    );
+
     // 리포스트 카운트 리턴
     @Query("select p.repostCount" +
             " from Post p" +

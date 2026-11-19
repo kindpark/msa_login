@@ -2,6 +2,7 @@ package com.example.login.common;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
@@ -65,8 +66,15 @@ public class GlobalExceptionHandler {
         log.error("처리되지 않은 예외", e);
         return toResponse(ErrorResponse.of(ErrorCode.INTERNAL_ERROR));
     }
+    /** 데드락 처리 **/
+    @ExceptionHandler(PessimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponse> handleLockingFailure(DataIntegrityViolationException e) {
+        log.warn("데드락 감지, 원인 : {}", e.getMostSpecificCause().getMessage());
+        return toResponse(ErrorResponse.of(ErrorCode.LOCK_CONFLICT));
+    }
 
     private ResponseEntity<ErrorResponse> toResponse(ErrorResponse body) {
         return ResponseEntity.status(body.status()).body(body);
     }
+
 }

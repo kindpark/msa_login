@@ -6,6 +6,7 @@ import com.example.login.event.EventMessage;
 import com.example.login.feed.FeedCache;
 import com.example.login.postlike.PostLikeRepository;
 import com.example.login.repost.RepostRepository;
+import com.example.login.repost.RepostService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Limit;
@@ -17,6 +18,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class PostService {
     private final PostRepository postRepository;
+    private final RepostService repostService;
     private final FeedCache feedCache;
     private final ApplicationEventPublisher eventPublisher;
     // 내꺼 조회
@@ -178,12 +180,13 @@ public class PostService {
             throw new BusinessException(ErrorCode.USER_NOT_FOUND);
         }
         int pageSize = Math.min(Math.max(size, 1), 50);
+        if(tab.equals("reposts")){
+            return repostService.getUserReposts(viewerId, targetUserId, cursor, size);
+        }
         List<PostWithLiked> rows = switch(tab){
             case "posts" -> postRepository.findUserRootPostsWithCursor(viewerId, targetUserId, cursor, Limit.of(pageSize+1));
             case "replies" -> postRepository.findUserRepliesPostsWithCursor(viewerId, targetUserId, cursor, Limit.of(pageSize+1));
             case "media" -> postRepository.findUserMediaPostsWithCursor(viewerId, targetUserId, cursor, Limit.of(pageSize+1));
-            // 추후 제작 예정
-            case "reposts" -> postRepository.findUserRepostPostsWithCursor(viewerId, targetUserId, cursor, Limit.of(pageSize + 1));
             default -> postRepository.findUserRootPostsWithCursor(viewerId, targetUserId, cursor, Limit.of(pageSize+1));
         };
         boolean hasNext = rows.size() > pageSize;
@@ -192,8 +195,6 @@ public class PostService {
 
         // 얻기로 한 페이지 수 만큼(포스트, 이미지, 답글)
         Long nextCursor = hasNext ? page.get(page.size() - 1).getPost().getId() : null;
-        // 리포스트 넥스트커서 재구성.
-        Integer nextRepostCursor =
         // 포스트 수 만큼 페이지 가져옴
         List<PostResponseDto> posts = page.stream()
                 .map(row -> PostResponseDto.from(row.getPost(), row.getLiked(), row.getReposted()))

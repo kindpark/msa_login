@@ -81,7 +81,7 @@ public class RepostService {
         // 포스트의 재게시자, 재게시 횟수 조회
         List<Repost> targetPosts = hasNext ? repost.subList(0, pageSize) : repost;
         if(targetPosts.isEmpty()){
-            return new PostPageResponseDto(null, null);
+            return new PostPageResponseDto(List.of(), null);
         }
 
         List<Long> usersReposts = targetPosts.stream()
