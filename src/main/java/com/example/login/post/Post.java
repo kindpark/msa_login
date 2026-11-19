@@ -34,6 +34,8 @@ public class Post {
     // 이 게시글 형 대화가 시작된 원본 글의 id
     private Long rootId;
 
+    //private Long repostId;
+
     private String content;
 
     private String imageUrl;
@@ -44,6 +46,9 @@ public class Post {
     @Builder.Default
     @Column(nullable = false)
     private Integer commentCount=0;
+    @Builder.Default
+    @Column(nullable = false)
+    private Integer repostCount=0;
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;

@@ -86,4 +86,20 @@ public class EventMessage {
                 parentId
         );
     }
+
+    public static EventMessage ofRepost(
+            Long userId,
+            Long postId,
+            Long postAuthorId
+    ) {
+        return new EventMessage(
+                UUID.randomUUID().toString(),
+                TYPE_REPOST_CREATED,
+                Instant.now(),
+                userId,
+                postAuthorId,
+                postId,
+                null
+        );
+    }
 }

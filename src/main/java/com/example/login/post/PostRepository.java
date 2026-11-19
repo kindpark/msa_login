@@ -95,6 +95,19 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("update Post p set p.likeCount = p.likeCount-1 "
             + "where p.id= :id and p.likeCount > 0")
     void decreaseLike(@Param("id") Long id);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Post p" +
+            " set p.repostCount = p.repostCount+1" +
+            " where p.id=:id")
+    void increaseRepostCount(@Param("id") Long id);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Post p" +
+            " set p.repostCount = p.repostCount-1" +
+            " where p.id=:id" +
+            " and p.repostCount > 0")
+    void decreaseRepostCount(@Param("id") Long id);
 //커서별로 유저 구분
     // 답글이 아닌 첫글
     @Query(TEXT_ON_MY_LIKE+
@@ -131,5 +144,10 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             @Param("cursor") Long cursor,
             Limit pageable
     );
+    // 리포스트 카운트 리턴
+    @Query("select p.repostCount" +
+            " from Post p" +
+            " where p.id =:id")
+    Integer findRepostCountById(Long postId);
 }
 

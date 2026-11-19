@@ -17,6 +17,67 @@
 
 ---
 
+## 목차
+
+- [1. 서비스 경계](#1-서비스-경계)
+- [2. 공통 규약](#2-공통-규약)
+  - [2.1 기본](#21-기본)
+  - [2.2 인증](#22-인증)
+  - [2.3 에러 응답](#23-에러-응답)
+  - [2.4 커서 페이지네이션](#24-커서-페이지네이션)
+- [3. 인증 (Auth)](#3-인증-auth)
+  - [3.1 로그인](#31-로그인-post-userslogin)
+  - [3.2 로그아웃](#32-로그아웃-post-userslogout)
+  - [3.3 아이디 찾기](#33-아이디-찾기-post-usersfind-id)
+  - [3.4 비밀번호 변경](#34-비밀번호-변경-patch-userspassword)
+  - [3.5 비밀번호 재설정](#35-비밀번호-재설정-)
+- [4. 사용자 (User)](#4-사용자-user)
+  - [4.1 회원가입](#41-회원가입-post-userssignup)
+  - [4.2 내 정보](#42-내-정보-get-usersme)
+  - [4.3 공개 정보 일괄 조회](#43-공개-정보-일괄-조회-get-usersids123)
+- [5. 팔로우 (Follow)](#5-팔로우-follow)
+  - [5.1 팔로우 토글](#51-팔로우-토글-post-followstargetuserid)
+  - [5.2 팔로잉 id 목록](#52-팔로잉-id-목록-get-followsfollowings)
+- [6. 게시글 (Post)](#6-게시글-post)
+  - [6.1 게시글 응답](#61-게시글-응답-postresponse)
+  - [6.2 작성](#62-작성-post-posts)
+  - [6.3 수정](#63-수정-put-postspostid)
+  - [6.4 삭제](#64-삭제-delete-postspostid)
+  - [6.5 답글 작성](#65-답글-작성-post-postspostidreplies)
+  - [6.6 답글 목록](#66-답글-목록-get-postspostidrepliescursorsize)
+  - [6.7 좋아요 토글](#67-좋아요-토글-post-postspostidlikes)
+  - [6.8 재게시 토글](#68-재게시-토글--post-postspostidreposts)
+  - [6.9 이미지 업로드](#69-이미지-업로드--post-images)
+  - [6.10 인용 재게시](#610-인용-재게시--post-postspostidquotes)
+- [7. 피드 (Feed)](#7-피드-feed-)
+  - [7.1 요구사항](#71-요구사항)
+  - [7.2 Redis 자료구조](#72-redis-자료구조)
+  - [7.3 쓰기 (fan-out)](#73-쓰기-fan-out)
+  - [7.4 팔로우 관계 얻기 (서비스 경계)](#74-팔로우-관계-얻기-서비스-경계)
+  - [7.5 읽기](#75-읽기-get-feedscursorsize)
+- [8. 프로필](#8-프로필-)
+  - [8.1 화면 구성](#81-화면-구성)
+  - [8.2 탭 규칙](#82-탭-규칙)
+  - [8.3 API](#83-api)
+- [9. 이벤트 (RabbitMQ 대비)](#9-이벤트-rabbitmq-대비-)
+  - [9.1 메시지 브로커](#91-메시지-브로커-)
+  - [9.2 이벤트 메시지 형식](#92-이벤트-메시지-형식-)
+- [10. 데이터 모델](#10-데이터-모델)
+  - [10.1 현재 테이블](#101-현재-테이블)
+  - [10.2 추가할 것](#102-추가할-것-)
+  - [10.3 현재 코드에 남은 작업](#103-현재-코드에-남은-작업-)
+- [11. 미결 사항](#11-미결-사항)
+- [12. 진행 순서](#12-진행-순서)
+- [13. 알림 서비스 (notification-service)](#13-알림-서비스-notification-service-)
+  - [13.1 인증](#131-인증)
+  - [13.2 API](#132-api)
+  - [13.3 SSE 형식](#133-sse-형식)
+  - [13.4 저장](#134-저장)
+  - [13.5 에러](#135-에러)
+- [부록 A. DB 피드 테이블 (Redis 대신 쓸 경우)](#부록-a-db-피드-테이블-redis-대신-쓸-경우)
+
+---
+
 ## 1. 서비스 경계
 
 | 서비스 | 소유 데이터 | 패키지 (모놀리스 기준) |
@@ -259,6 +320,7 @@ X 방식을 따른다. **답글도 게시글**이며, `parentId` 로 관계를 �
 | ✅ | GET | `/posts/{postId}/replies` | 필요 | 답글 목록 (커서) |
 | ✅ | POST | `/posts/{postId}/likes` | 필요 | 좋아요 토글 |
 | 📝 | POST | `/posts/{postId}/reposts` | 필요 | 재게시 토글 (§6.8) |
+| 📝 | POST | `/posts/{postId}/quotes` | 필요 | 인용 재게시 작성 (§6.10) |
 | 🚧 | GET | `/posts/me` | 필요 | 내 글 목록 → 프로필 탭(§8)으로 대체 |
 | 🚧 | GET | `/posts/all` | 필요 | 전체 글 (개발용) → 피드(§7)로 대체 |
 
@@ -283,7 +345,8 @@ X 방식을 따른다. **답글도 게시글**이며, `parentId` 로 관계를 �
 | parentId | 원글이면 `null`, 답글이면 부모 글 id |
 | commentCount | **직접** 달린 답글 수 |
 | liked | 요청한 사용자가 좋아요 했는지. 🚧 아직 응답에 없음 (§10) |
-| repostCount, reposted | 📝 재게시 구현 시 추가 |
+| repostCount, reposted | 📝 재게시 수, 요청한 사용자가 재게시했는지. `liked` 와 같은 방식(left join + projection)으로 채운다 (§6.8) |
+| quoteId, quotedPost, quoteCount | 📝 인용 재게시 (§6.10) |
 
 `rootId` 는 서버 내부용이라 응답에 넣지 않는다.
 
@@ -333,14 +396,61 @@ X 방식을 따른다. **답글도 게시글**이며, `parentId` 로 관계를 �
 
 응답 `200` `{ "liked": true }`. 에러: `404 POST_NOT_FOUND`
 
+📝 재게시(§6.8)처럼 `{ "liked": true, "likeCount": 4 }` 로 맞추기 [결정]. 두 버튼이 같은 방식이면 프론트 코드가 하나로 된다.
+
 📝 좋아요 누른 사람 목록 `GET /posts/{postId}/likes?cursor=&size=` → `{ "userIds": [...], "nextCursor" }` (부가 기능, 피드 이후).
 
 ### 6.8 재게시 토글 📝 `POST /posts/{postId}/reposts`
 
 - 좋아요와 같은 구조. 기록은 `reposts` 테이블, 카운트는 `posts.repost_count`.
-- 인용 재게시(내 글을 덧붙이는 재게시)는 범위 밖.
+- 인용 재게시(내 글을 덧붙이는 재게시)는 **새 게시글**이라 따로 둔다 → §6.10. `reposts` 테이블에는 본문 컬럼을 넣지 않는다.
+- 이미 재게시했으면 취소, 아니면 재게시. 기록과 카운트를 **한 트랜잭션**에서 바꾼다.
+- 카운트는 DB 에서 직접 `+1/-1` 하는 쿼리로 바꾸고, 0 아래로 내려가지 않는다. 이 쿼리는 `@Modifying(clearAutomatically = true, flushAutomatically = true)` 로 둔다 (2026-11-18 좋아요 버그: flush 없이 clear 하면 같은 트랜잭션의 `delete` 가 사라졌다).
 
-응답 `200` `{ "reposted": true }`
+응답 `200` `{ "reposted": true, "repostCount": 6 }`. 에러: `404 POST_NOT_FOUND`
+
+- `repostCount` 는 **업데이트한 뒤 DB 에서 다시 읽은 값**이다. 화면 숫자에 ±1 만 하면 그 사이 다른 사람이 재게시한 만큼 어긋나기 때문이다 (2026-11-19 결정).
+- 메서드 앞에서 `findById` 로 읽어 둔 엔티티의 값을 쓰면 안 된다. 벌크 UPDATE 는 이미 읽어 둔 엔티티를 바꾸지 않으므로 **업데이트 전 숫자**가 나온다. 카운트만 읽는 쿼리를 따로 둔다.
+- 그 뒤 다른 사람이 누른 것은 새로고침해야 보인다 (실시간 숫자는 범위 밖).
+- 프론트는 응답의 `repostCount` 를 그대로 쓴다.
+
+**단계**
+
+| 단계 | 내용 |
+|---|---|
+| 1차 | 토글, 게시글 응답의 `repostCount` · `reposted`(§6.1), 알림(`repost.created`), 프로필 **재게시** 탭(§8.2) |
+| 1.5차 | 인용 재게시 (§6.10). 1차 토글이 끝난 뒤. 게시물 탭 합치기와 상관없다 |
+| 2차 | 프로필 **게시물** 탭에 원글 + 재게시 합치기(아래), 피드 `REPOST` 항목(§7) |
+
+**규칙** ([결정] 은 제안만 해 둔 것)
+
+| 항목 | 제안 | 이유 |
+|---|---|---|
+| 답글 재게시 | 허용 [결정] | X 와 같다. 답글도 게시글이다 |
+| 내 글 재게시 | 허용 [결정] | X 와 같다. 알림은 알림 서비스가 셀프로 거른다 (§9.2) |
+| 삭제된 글 | `404 POST_NOT_FOUND` | soft delete 된 글은 조회에서 빠진다. 좋아요와 같다 |
+| 원글이 삭제되면 | 재게시 행은 남기고, 읽을 때 원글이 없으면 건너뛴다 | 피드의 "삭제된 글" 규칙(§7.1)과 같다. 글 삭제가 reposts 까지 지우면 다른 기능의 테이블을 알아야 한다 |
+| 동시에 두 번 누름 | 두 번째 insert 가 unique 에 걸린다 → [결정] `409` / "이미 재게시됨"으로 보고 `200` | |
+| 이벤트 | 재게시했을 때만 `repost.created` (취소 때는 안 보냄). 셀프 재게시도 발행 | 피드 단계에서 `repost.deleted` 추가 |
+
+**2차: 게시물 탭 합치기 (미결 → §11)**
+
+원글(`posts`)과 재게시(`reposts`)를 한 최신순 목록으로 보여준다. 정렬은 원글은 작성 시각, 재게시는 **재게시한 시각**(X 와 같음). 두 테이블의 id 는 서로 비교할 수 없어서 커서를 따로 정해야 한다.
+
+| 방법 | 내용 | 장점 | 단점 |
+|---|---|---|---|
+| A. 시각 + id 복합 커서 | 두 쿼리를 각각 `size+1` 개씩 가져와 시각순으로 합친다. 커서는 `(시각, 종류, id)` | 테이블 추가 없음 | 커서가 복잡하고 같은 시각 처리 규칙이 필요 |
+| B. 활동 테이블 | 원글 작성 · 재게시 때 `profile_items(user_id, type, post_id, created_at)` 에 한 줄씩 쓴다 | 조회가 한 쿼리, 커서가 단순 | 쓰기가 두 곳 |
+| C. 피드 재사용 | 피드(§7)처럼 Redis 에 사용자별 활동 목록을 둔다 | 피드와 모양이 같음 | 캐시가 비면 다시 만들어야 함 |
+
+내 글을 내가 재게시하면 같은 글이 두 번 나온다 → 원글만 보여준다 [결정].
+
+**확인 목록**
+
+- [ ] 재게시 → 취소 → 재게시 후 `repost_count` 와 `reposts` 행 수가 같다
+- [ ] 다른 사람 글 재게시 → 작성자에게 알림 1개 / 내 글 재게시 · 취소 → 알림 없음
+- [ ] 삭제된 글 → `404` / 원글 삭제 후 재게시 탭에서 그 항목이 빠진다
+- [ ] 동시에 두 번 누르기 → 행 1개, 카운트 1
 
 ### 6.9 이미지 업로드 📝 `POST /images`
 
@@ -358,6 +468,56 @@ X 방식을 따른다. **답글도 게시글**이며, `parentId` 로 관계를 �
 - 확장자·Content-Type 은 믿지 말고 허용 목록과 비교한다.
 - 저장 위치는 처음에는 서버 로컬 폴더, 서비스를 나누면 객체 저장소(S3 등)로 옮긴다. 응답이 주소만 주므로 프론트는 바뀌지 않는다.
 - `url` 을 `/api/v1/...` 아래로 두면 개발(Vite 프록시)과 배포(게이트웨이) 모두 같은 출처라 추가 설정이 필요 없다.
+
+### 6.10 인용 재게시 📝 `POST /posts/{postId}/quotes`
+
+다른 글을 첨부해서 내 글을 쓰는 것. 일반 재게시(§6.8)와 달리 **인용은 새 게시글**이다. 자기 id, 좋아요, 답글을 가지므로 `reposts` 가 아니라 `posts` 에 저장한다.
+
+| | 일반 재게시 §6.8 | 인용 재게시 |
+|---|---|---|
+| 저장 | `reposts` 행 | `posts` 행 + `quote_id` |
+| 동작 | 토글 (한 글에 한 번) | 작성 (여러 번 가능, 취소는 글 삭제) |
+| 본문 | 없음 | 있음 (§6.2 규칙) |
+| 카운트 | 원글 `repost_count` | 원글 `quote_count` |
+| 프로필 탭 | 재게시 탭 | 게시물 탭 (`parent_id IS NULL` 이라 그대로 들어간다) |
+
+- 요청: §6.2 와 같다 `{ "content", "imageUrl" }`. `{postId}` 가 인용할 글이다.
+- 서버 처리: 인용할 글 존재 확인(없거나 삭제됐으면 404) → `quoteId = postId`, `parentId = null` → 인용할 글 `quoteCount + 1` → 저장. **답글 작성(§6.5)과 같은 흐름**이다.
+- 응답 `200` `PostResponse` (새 글, `quoteId = postId`). 에러: `404 POST_NOT_FOUND`, `400 VALIDATION_ERROR`
+
+**PostResponse 추가 필드** (§6.1)
+
+| 필드 | 설명 |
+|---|---|
+| quoteId | 인용한 글 id. 인용이 아니면 `null` |
+| quotedPost | 인용한 글의 `PostResponse`. **한 단계만** 넣는다 (그 안의 `quotedPost` 는 항상 `null`). 인용한 글이 삭제됐으면 `null` → 프론트는 `quoteId != null && quotedPost == null` 이면 "삭제된 게시물" 상자를 그린다 |
+| quoteCount | 이 글을 인용한 글 수 |
+
+`quotedPost` 를 응답에 넣는 이유: `parentId` 처럼 id 만 주면 목록 한 페이지에 프론트 요청이 글 수만큼 더 나간다. 서버는 페이지의 `quoteId` 들을 모아 IN 쿼리 한 번으로 채운다(`liked` 와 같은 방식).
+
+**규칙** ([결정] 은 제안만 해 둔 것)
+
+| 항목 | 제안 | 이유 |
+|---|---|---|
+| 답글 인용 | 허용 [결정] | 답글도 게시글이다 |
+| 내 글 인용 | 허용 | 알림은 셀프로 걸러진다 (§9.2) |
+| 인용의 인용 | 허용, 화면은 한 단계만 | X 와 같다. 끝없이 중첩되지 않게 |
+| 인용이면서 답글 | 안 됨 | 인용은 원글이다 (`parent_id = null`) |
+| 수정 (§6.3) | 본문만. `quoteId` 는 못 바꾼다 | |
+| 인용 글 삭제 | 원글 `quoteCount - 1` | 답글 삭제 때 `commentCount - 1` 과 같다 |
+| 원글이 삭제되면 | 인용 글은 남는다. `quotedPost = null` | §6.4 답글 규칙과 같다 |
+| 버튼 숫자 | 🔁 옆에 `repostCount + quoteCount` [결정] | X 와 같다. 나눠 보려면 나중에 "인용 목록" |
+| 카운트 쿼리 | `+1/-1` 쿼리, `@Modifying(clearAutomatically = true, flushAutomatically = true)` | §6.8 과 같다 |
+| 이벤트 | `quote.created` (§9). 피드는 이 이벤트를 `POST` 항목으로 넣는다 | |
+
+📝 인용 목록 `GET /posts/{postId}/quotes?cursor=&size=` → `{ posts, nextCursor }` (부가 기능, 나중에). 인덱스 `(quote_id, id)`.
+
+**확인 목록**
+
+- [ ] 인용 → 새 글이 생기고 원글 `quote_count` 가 1 늘어난다 / 인용 글 삭제 → 1 줄어든다
+- [ ] 원글 삭제 후 인용 글 조회 → `quoteId` 는 있고 `quotedPost` 는 `null`
+- [ ] 인용의 인용 → `quotedPost.quotedPost` 가 `null`
+- [ ] 다른 사람 글 인용 → 작성자에게 알림 1개 (알림을 누르면 인용 글로 간다)
 
 ---
 
@@ -503,9 +663,9 @@ X 와 Threads 를 섞는다.
 
 | 탭 | 보여줄 것 | 조회 조건 |
 |---|---|---|
-| 게시물 | 원글 + 재게시 (최신순) | 원글: `user_id = ? AND parent_id IS NULL` / 재게시: `reposts.user_id = ?` |
+| 게시물 | 원글 + 재게시 (최신순) | 원글: `user_id = ? AND parent_id IS NULL` / 재게시: `reposts.user_id = ?`. 재게시 합치기는 2차 (§6.8) |
 | 답글 | 그 사용자가 쓴 답글 | `user_id = ? AND parent_id IS NOT NULL` |
-| 재게시 | 재게시만 | `reposts.user_id = ?` |
+| 재게시 | 재게시만, **재게시한 순서**(최신순). 커서는 `reposts.id`, `posts` 는 원글의 `PostResponse` | `reposts.user_id = ?`. 원글이 삭제된 항목은 건너뛴다 (한 페이지가 `size` 보다 적을 수 있음) |
 | 미디어 | 이미지가 있는 글 | `user_id = ? AND image_url IS NOT NULL` |
 
 ### 8.3 API
@@ -565,7 +725,8 @@ X 와 Threads 를 섞는다.
 | `post.created` | PostService | postId, actorId | 피드 |
 | `reply.created` | PostService | actorId, recipientId(부모 글 작성자), postId(새 답글), parentId | 피드, 알림 |
 | `like.created` | PostLikeService | actorId, recipientId(글 작성자), postId | 피드, 알림 |
-| `repost.created` | RepostService | actorId, recipientId(원글 작성자), postId | 피드, 알림 |
+| `repost.created` | RepostService | actorId, recipientId(원글 작성자), postId. 재게시했을 때만 (§6.8) | 피드, 알림 |
+| `quote.created` | PostService | actorId, recipientId(인용된 글 작성자), postId(새 인용 글) (§6.10) | 피드(`POST` 항목), 알림 |
 | `follow.created` | FollowService | actorId(팔로우한 사람), recipientId(팔로우 받은 사람) | 피드, 알림 |
 
 - 모두 **커밋 후** 발행한다.
@@ -580,7 +741,7 @@ X 와 Threads 를 섞는다.
 |---|---|
 | exchange | `sns.events` — topic exchange, durable |
 | routing key | 이벤트 `type` 그대로. 예: `follow.created` |
-| 알림 서비스 큐 | `notification.events` (durable) — `follow.created`, `reply.created`, `like.created`, `repost.created` 를 바인딩 |
+| 알림 서비스 큐 | `notification.events` (durable) — `follow.created`, `reply.created`, `like.created`, `repost.created`, `quote.created` 를 바인딩 |
 | 처리 실패 | 알림 서비스가 처리하지 못한 메시지는 `notification.events.dlq` 로 보낸다 (dead-letter) |
 | 메시지 | JSON, UTF-8, `content-type: application/json`, persistent |
 | 전달 보장 | **최소 한 번**. 같은 메시지가 두 번 올 수 있으므로 소비자는 `eventId` 로 중복을 거른다 |
@@ -619,6 +780,7 @@ X 와 Threads 를 섞는다.
 | `reply.created` | 답글 쓴 사람 | 부모 글 작성자 | 새 답글 id | 부모 글 id |
 | `like.created` | 누른 사람 | 글 작성자 | 글 id | null |
 | `repost.created` | 재게시한 사람 | 원글 작성자 | 원글 id | null |
+| `quote.created` | 인용한 사람 | 인용된 글 작성자 | **새 인용 글 id** (알림을 누르면 인용 글로 간다) | null |
 
 - `actorId == recipientId`(내 글에 내가 좋아요·답글)여도 **발행한다**. 이벤트는 "일어난 일"이고, 누구에게 알릴지는 알림 서비스가 정한다. 알림 서비스는 `actorId == recipientId` 이면 저장하지 않는다 (셀프 팔로우는 API 에서 막는다).
 - 이름(닉네임)은 이벤트에 넣지 않는다. 닉네임은 바뀔 수 있으므로 프론트가 `GET /users?ids=` 로 그때그때 받는다 (게시글 작성자 이름과 같은 방식).
@@ -645,6 +807,7 @@ X 와 Threads 를 섞는다.
 | posts | `content` 를 TEXT 또는 VARCHAR(1000) | 기본 255자는 짧음 |
 | posts | `repost_count INT NOT NULL DEFAULT 0` | 재게시 수 |
 | reposts | id, user_id, post_id, created_at / unique(user_id, post_id), index(user_id, id) | 재게시 |
+| posts | `quote_id BIGINT NULL`, `quote_count INT NOT NULL DEFAULT 0`, 인덱스 `(quote_id, id)` | 인용 재게시 (§6.10) |
 | users | `handle VARCHAR(15) UNIQUE`, `banner_image_url VARCHAR(500)` | 프로필 |
 | post_likes 인덱스 | `(post_id, id)` (지금의 이름 잘못된 인덱스를 대체) | 좋아요 누른 사람 목록 |
 
@@ -671,6 +834,9 @@ X 와 Threads 를 섞는다.
 | 팔로우 시 과거 글 채우기 | 안 함 / 최근 N개 | 최근 원글 20개 |
 | 같은 글 LIKE 항목 묶기 | 항목마다 표시 / "B님 외 1명" | 지금은 항목마다, 나중에 프론트에서 묶기 |
 | 피드에 LIKE 포함 | 포함 / 제외 | 포함(결정). 시끄러우면 설정으로 끄기 |
+| 🔁 버튼 숫자 (§6.10) | 재게시만 / 재게시 + 인용 | 재게시 + 인용 (X 와 같음) |
+| 삭제된 글 복구 (관리자 모드) | 예전 재게시·좋아요를 그대로 살림 / 복구 때 지움 | 미정. soft delete 라 `reposts`·`post_likes` 행과 unique 가 남아 있으므로, 복구하면 예전 기록이 그대로 살아난다. 관리자 모드를 만들 때 정한다 (§6.8) |
+| 프로필 게시물 탭 합치기 (§6.8) | 시각+id 복합 커서 / 활동 테이블 / Redis 활동 목록 | 미정. 1차는 재게시 탭만 |
 | 기존 계정 handle | 이메일 앞부분 + 숫자로 자동 생성 / 첫 로그인 때 입력 | 자동 생성 후 수정 가능 |
 | 외부 SNS 연동 범위 | 크로스포스팅(우리 글을 X·Threads에도 게시) / 외부 글을 프로필에 가져오기 / 팔로잉의 외부 글 모으기 | 크로스포스팅부터. 팔로잉 글 모으기는 공식 API로 대부분 불가. 시작 전에 각 개발자 문서에서 가격·약관(저장 허용 범위) 재확인 |
 
@@ -683,12 +849,12 @@ X 와 Threads 를 섞는다.
 | 0 | 남은 작업 정리 (§10.3) | `liked` 표시, 좋아요 목록 주석 처리 |
 | 1 | 피드 1단계: Redis 연결, `post.created` fan-out, `GET /feeds` | 팔로우한 사람의 새 글이 내 피드에 최신순으로 |
 | 2 | REPLY·LIKE 항목, 취소·언팔로우 시 제거, 캐시 비었을 때 재구성 | 좋아요 취소하면 피드에서 사라짐 |
-| 3 | 재게시 (§6.8) + REPOST 항목 | 재게시가 피드·프로필에 보임 |
+| 3 | 재게시 (§6.8) + 인용 재게시 (§6.10) + REPOST 항목 | 재게시가 피드·프로필에 보임, 인용 글에 원글 상자가 보임 |
 | 4 | 프로필 (§8) | 4개 탭, 프로필 수정 |
 | 5 | 알림 서비스 (Spring, RabbitMQ, SSE) | 답글·좋아요·팔로우 알림 실시간 수신 |
 | 6 | 서비스 분리 | user / post-feed 별도 기동, `FollowReader` HTTP 구현 |
 
-**범위 밖**: 인용 재게시, 여러 장 이미지·동영상(이미지 1장 업로드는 §6.9), 외부 SNS(X API) 연동과 리다이렉션, 해시태그, 검색.
+**범위 밖**: 여러 장 이미지·동영상(이미지 1장 업로드는 §6.9), 외부 SNS(X API) 연동과 리다이렉션, 해시태그, 검색.
 
 **외부 SNS 연동을 하게 되면** (§11): 별도 `integration-service`가 OAuth 토큰(암호화 저장)·rate limit·외부 장애를 맡고, 피드와는 이벤트로만 연결한다. 피드 항목 `type`에 `EXTERNAL`을 추가하면 피드 구조는 그대로 쓸 수 있다. 6단계(서비스 분리) 이후에 진행한다.
 

@@ -17,9 +17,11 @@ public class PostResponseDto {
     private Long parentId;
     private String content;
     private boolean liked;
+    private boolean reposted;
     private String imageUrl;
     private Integer likeCount;
     private Integer commentCount;
+    private Integer repostCount;
     private LocalDateTime createdAt;
 
     public static PostResponseDto from(Post entity, boolean liked) {

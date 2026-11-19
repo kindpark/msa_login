@@ -27,6 +27,8 @@ public class PostLikeService {
         if(postId == null){
             throw new BusinessException((ErrorCode.POST_NOT_FOUND));
         }
+        //Post 엔티티에서 글 작성자 id를 불러오기 위함.
+        // 여기서 userId는 글을 보는 사람을 의미
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
         // 이미 좋아요를 한 상태에서 누른다면 좋아요를 취소함(모달같은거 안띄움)
