@@ -665,7 +665,7 @@ X 와 Threads 를 섞는다.
 |---|---|---|
 | 게시물 | 원글 + 재게시 (최신순) | 원글: `user_id = ? AND parent_id IS NULL` / 재게시: `reposts.user_id = ?`. 재게시 합치기는 2차 (§6.8) |
 | 답글 | 그 사용자가 쓴 답글 | `user_id = ? AND parent_id IS NOT NULL` |
-| 재게시 | 재게시만, **재게시한 순서**(최신순). 커서는 `reposts.id`, `posts` 는 원글의 `PostResponse` | `reposts.user_id = ?`. 원글이 삭제된 항목은 건너뛴다 (한 페이지가 `size` 보다 적을 수 있음) |
+| 재게시 | 재게시만, **재게시한 순서**(최신순). 커서는 `reposts.id`, `posts` 는 원글의 `PostResponse` | `reposts.user_id = ?`. 원글이 삭제된 항목은 건너뛴다 (한 페이지가 `size` 보다 적을 수 있음). **두 단계 조회**(피드 §7.5 와 같은 방식): ① `reposts` 를 커서로 `size+1` 개 ② 그 `post_id` 들로 글 조회 + `liked`·`reposted` IN 쿼리 ③ ① 의 순서로 정렬. `nextCursor` 는 ① 의 마지막 `reposts.id` (2026-11-19 결정) |
 | 미디어 | 이미지가 있는 글 | `user_id = ? AND image_url IS NOT NULL` |
 
 ### 8.3 API

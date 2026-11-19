@@ -84,7 +84,7 @@ public class ProfileService {
                 : followRepository.findByFollowingIdAndIdLessThanOrderByIdDesc(targetUserId, cursor, limit);
         boolean hasNext = fetchedIds.size() > pageSize;
         List<Follow> targetFollows = hasNext ? fetchedIds.subList(0, pageSize) : fetchedIds;
-       // 타겟 아이ㅣ 없다면 빈걸 리턴한다.
+       // 타겟이 없다면 빈걸 리턴한다.
         if(targetFollows.isEmpty()){
             return new FollowPageResponseDto(List.of(), null);
         }

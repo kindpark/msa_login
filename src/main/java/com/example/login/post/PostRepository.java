@@ -30,21 +30,25 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             Limit size);
     // 글마다 나의 좋아요가 있는가?
     // DB의 조건문에 대해선 내가 안배웠으므로..
-    String TEXT_ON_MY_LIKE = "select p as post," +
-            " case when l.id is not null then true else false end as liked"+
+    String TEXT_ON_MY_LIKE_AND_REPOST = "select p as post," +
+            " case when l.id is not null then true else false end as liked," +
+            " case when r.id is not null then true else false end as reposted"+
             " from Post p" +
             " left join PostLike l" +
             " on l.postId = p.id" +
-            " and l.userId =:viewerId";
+            " and l.userId =:viewerId"+
+            " left join Repost r" +
+            " on r.postId = p.id" +
+            " and r.userId =:viewerId";
     // 내가 좋아요를 했는지에 대한 여부
     // 나에 대한 식별
-    @Query(TEXT_ON_MY_LIKE + " where p.id =:id")
+    @Query(TEXT_ON_MY_LIKE_AND_REPOST + " where p.id =:id")
     Optional<PostWithLiked> findByIdWithLiked(
             @Param("id") Long id,
             @Param("viewerId") Long viewerId
     );
     // 답글 목록 및 답글에 좋아요를 눌렀는가
-    @Query(TEXT_ON_MY_LIKE +
+    @Query(TEXT_ON_MY_LIKE_AND_REPOST +
             " where p.parentId =:parentId" +
             " and (:cursor is null or p.id > :cursor)" +
             " order by p.id asc")
@@ -55,7 +59,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
         Limit limit
     );
     // userId 기반 Liked를 찾음
-    @Query(TEXT_ON_MY_LIKE +
+    @Query(TEXT_ON_MY_LIKE_AND_REPOST +
         " where p.userId =:userId" +
             " order by p.id desc")
     List<PostWithLiked> findByUserIdWithLiked(
@@ -63,10 +67,11 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             @Param("viewerId") Long viewerId
     );
     // 모든 글과 내가 좋아요를 눌렀는가
-    @Query(TEXT_ON_MY_LIKE +
+    @Query(TEXT_ON_MY_LIKE_AND_REPOST +
     " order by p.id desc")
     List<PostWithLiked> findAllWithLiked(
             @Param("viewerId") Long viewerId);
+
     // 커서 기반 쓰레드 페이지 조회, 쓰레드 기반 배치 작업
     @Query("select p from Post p" +
             " where p.parentId = :parentId" +
@@ -110,7 +115,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     void decreaseRepostCount(@Param("id") Long id);
 //커서별로 유저 구분
     // 답글이 아닌 첫글
-    @Query(TEXT_ON_MY_LIKE+
+    @Query(TEXT_ON_MY_LIKE_AND_REPOST+
             " where p.userId = :userId" +
             " and p.parentId is null" +
             " and (:cursor is null or p.id < :cursor)" +
@@ -122,7 +127,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             Limit pageable
     );
 
-    @Query(TEXT_ON_MY_LIKE+
+    @Query(TEXT_ON_MY_LIKE_AND_REPOST+
             " where p.userId = :userId" +
             " and p.parentId is not null" +
             " and (:cursor is null or p.id < :cursor)" +
@@ -133,7 +138,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             @Param("cursor") Long cursor,
             Limit pageable
     );
-    @Query(TEXT_ON_MY_LIKE+
+    @Query(TEXT_ON_MY_LIKE_AND_REPOST+
             " where p.userId = :userId" +
             " and p.imageUrl is not null" +
             " and (:cursor is null or p.id < :cursor)" +
@@ -144,10 +149,23 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             @Param("cursor") Long cursor,
             Limit pageable
     );
+    // 프로필 재게시 탭
+    @Query(TEXT_ON_MY_LIKE_AND_REPOST +
+            " join Repost rp" +
+            " on rp.postId = p.id" +
+            " where rp.userId =:userId" +
+            " and (:cursor is null or rp.id < :cursor)" +
+            " order by rp.id desc")
+    List<PostWithLiked> findUserRepostPostsWithCursor(
+            @Param("viewerId") Long viewerId,
+            @Param("userId") Long userId,
+            @Param("cursor") Long cursor,
+            Limit pageable
+    );
     // 리포스트 카운트 리턴
     @Query("select p.repostCount" +
             " from Post p" +
             " where p.id =:id")
-    Integer findRepostCountById(Long postId);
+    Integer findRepostCountById(@Param("id") Long postId);
 }
 

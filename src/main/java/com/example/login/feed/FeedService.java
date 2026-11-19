@@ -4,6 +4,7 @@ import com.example.login.post.Post;
 import com.example.login.post.PostRepository;
 import com.example.login.post.PostResponseDto;
 import com.example.login.postlike.PostLikeRepository;
+import com.example.login.repost.RepostRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Limit;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ public class FeedService {
     private final PostRepository postRepository;
     private final FeedCache feedCache;
     private final PostLikeRepository postLikeRepository;
+    private final RepostRepository repostRepository;
     private final int cacheSize;
     private final FollowReader followReader;
     // 피드 캐시 사이즈 때문에 requireArgsconstructor 쓰지않음
@@ -27,6 +29,7 @@ public class FeedService {
             PostRepository postRepository,
             FeedCache feedCache,
             PostLikeRepository postLikeRepository,
+            RepostRepository repostRepository,
             @Value("${feed.cache-size:200}") int cacheSize,
             FollowReader followReader
     ){
@@ -34,6 +37,7 @@ public class FeedService {
         this.postRepository = postRepository;
         this.feedCache = feedCache;
         this.postLikeRepository = postLikeRepository;
+        this.repostRepository = repostRepository;
         this.cacheSize = cacheSize;
         this.followReader = followReader;
     }
@@ -77,9 +81,11 @@ public class FeedService {
         // 좋아요 여부 일괄 조회 (N+1 방지)
         Set<Long> likedPostIds = postLikeRepository.findLikedPostIds(targetIds, userId);
 
+        // 리포스트 여부 일괄 조회
+        Set<Long> repostedPostIds = repostRepository.findRepostedPostIds(targetIds, userId);
         // dto 변환
         List<PostResponseDto> items = orderedPosts.stream()
-                .map(post -> PostResponseDto.from(post, likedPostIds.contains(post.getId())))
+                .map(post -> PostResponseDto.from(post, likedPostIds.contains(post.getId()), repostedPostIds.contains(post.getId())))
                 .toList();
         // nextCursor 계산 및 반환
         Long nextCursor = hasNext ? targetIds.get(targetIds.size() - 1) : null;

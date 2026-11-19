@@ -24,16 +24,21 @@ public class PostResponseDto {
     private Integer repostCount;
     private LocalDateTime createdAt;
 
-    public static PostResponseDto from(Post entity, boolean liked) {
+    public static PostResponseDto from(
+            Post entity,
+            boolean liked,
+            boolean reposted) {
         return PostResponseDto.builder()
                 .id(entity.getId())
                 .userId(entity.getUserId())
                 .parentId(entity.getParentId())
                 .content(entity.getContent())
                 .liked(liked)
+                .reposted(reposted)
                 .imageUrl(entity.getImageUrl())
                 .likeCount(entity.getLikeCount())
                 .commentCount(entity.getCommentCount())
+                .repostCount(entity.getRepostCount())
                 .createdAt(entity.getCreatedAt())
                 .build();
     }
