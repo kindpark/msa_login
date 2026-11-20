@@ -158,6 +158,10 @@ public class PostService {
             postRepository.decreaseComment(post.getParentId());
             feedCache.evict(userId);
         }
+        if(post.getQuoteId() != null){
+            postRepository.decreaseQuoteCount(post.getQuoteId());
+            feedCache.evict(userId);
+        }
         // 삭제된 게시글 정보를 DTO로 변환하여 반환
         return PostResponseDto.from(post, false, false);
     }

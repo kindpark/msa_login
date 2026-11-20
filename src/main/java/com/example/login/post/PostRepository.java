@@ -115,6 +115,18 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             " where p.id=:id" +
             " and p.repostCount > 0")
     void decreaseRepostCount(@Param("id") Long id);
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Post p" +
+            " set p.quoteCount = p.quoteCount+1" +
+            " where p.id=:id")
+    void increaseQuoteCount(@Param("id") Long id);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Post p" +
+            " set p.quoteCount = p.quoteCount-1" +
+            " where p.id=:id" +
+            " and p.quoteCount > 0")
+    void decreaseQuoteCount(@Param("id") Long id);
 //커서별로 유저 구분
     // 답글이 아닌 첫글
     @Query(TEXT_ON_MY_LIKE_AND_REPOST+

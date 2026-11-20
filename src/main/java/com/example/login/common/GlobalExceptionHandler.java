@@ -68,7 +68,7 @@ public class GlobalExceptionHandler {
     }
     /** 데드락 처리 **/
     @ExceptionHandler(PessimisticLockingFailureException.class)
-    public ResponseEntity<ErrorResponse> handleLockingFailure(DataIntegrityViolationException e) {
+    public ResponseEntity<ErrorResponse> handleLockingFailure(PessimisticLockingFailureException e) {
         log.warn("데드락 감지, 원인 : {}", e.getMostSpecificCause().getMessage());
         return toResponse(ErrorResponse.of(ErrorCode.LOCK_CONFLICT));
     }

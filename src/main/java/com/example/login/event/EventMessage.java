@@ -14,6 +14,7 @@ public class EventMessage {
     private static final String TYPE_POSTLIKE_CREATED = "like.created";
     private static final String TYPE_REPLY_CREATED = "reply.created";
     private static final String TYPE_REPOST_CREATED = "repost.created";
+    private static final String TYPE_QUOTE_CREATED = "quote.created";
 
     private final String eventId;
     private final String type;
@@ -98,6 +99,21 @@ public class EventMessage {
                 Instant.now(),
                 userId,
                 postAuthorId,
+                postId,
+                null
+        );
+    }
+    public static EventMessage ofQuote(
+            Long userId,
+            Long recipientId,
+            Long postId
+            ) {
+        return new EventMessage(
+                UUID.randomUUID().toString(),
+                TYPE_QUOTE_CREATED,
+                Instant.now(),
+                userId,
+                recipientId,
                 postId,
                 null
         );

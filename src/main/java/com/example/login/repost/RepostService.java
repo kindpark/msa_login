@@ -3,12 +3,10 @@ package com.example.login.repost;
 import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
 import com.example.login.event.EventMessage;
+import com.example.login.feed.FeedCache;
 import com.example.login.follow.Follow;
 import com.example.login.follow.FollowUserResponseDto;
-import com.example.login.post.Post;
-import com.example.login.post.PostPageResponseDto;
-import com.example.login.post.PostRepository;
-import com.example.login.post.PostResponseDto;
+import com.example.login.post.*;
 import com.example.login.postlike.PostLikeRepository;
 import com.example.login.user.Users;
 import com.example.login.user.UsersRepository;
@@ -23,6 +21,8 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.example.login.event.EventMessage.ofQuote;
+
 // 리포스트 수정의 개념은, 게시글 수정으로 넘겨도 될듯 하다.
 @Service
 @RequiredArgsConstructor
@@ -31,6 +31,7 @@ public class RepostService {
     private final PostRepository postRepository;
     private final PostLikeRepository postLikeRepository;
     private final ApplicationEventPublisher eventPublisher;
+    private final FeedCache feedCache;
     //리포스트 글 조회?(이건 게시글로 되지 않을까?)
 
 
@@ -63,6 +64,45 @@ public class RepostService {
         }
         int currentRepostCount = postRepository.findRepostCountById(postId);
         return RepostResponseDto.from(reposted, currentRepostCount);
+    }
+    @Transactional
+    public PostResponseDto quote(
+            PostRequestDto dto,
+            Long userId,
+            Long postId
+    ){
+        Post post = postRepository.findById(postId)
+                .orElseThrow(()-> new BusinessException(ErrorCode.POST_NOT_FOUND));
+
+        // 인용 가능하고, 부모글 있으면 작성
+        Post quotePost = createQuote(dto.getContent(), dto.getImageUrl(), userId, postId);
+
+        Post savedPost = postRepository.save(quotePost);
+
+        // 인용수 증가
+        postRepository.increaseQuoteCount(postId);
+
+        feedCache.evict(userId);
+        eventPublisher.publishEvent(ofQuote(post.getUserId(), userId, savedPost.getId()));
+
+        return PostResponseDto.from(savedPost, false, false);
+    }
+
+    private Post createQuote(
+            String content,
+            String imageUrl,
+            Long userId,
+            Long postId
+    ){
+        Post post = postRepository.findById(postId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.POST_NOT_FOUND));
+
+        return Post.builder()
+                .userId(userId)
+                .content(content)
+                .imageUrl(imageUrl)
+                .quoteId(postId)
+                .build();
     }
 
     @Transactional(readOnly = true)

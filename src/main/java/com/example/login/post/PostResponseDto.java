@@ -15,6 +15,7 @@ public class PostResponseDto {
     private Long id;
     private Long userId;
     private Long parentId;
+    private Long quoteId;
     private String content;
     private boolean liked;
     private boolean reposted;
@@ -22,6 +23,7 @@ public class PostResponseDto {
     private Integer likeCount;
     private Integer commentCount;
     private Integer repostCount;
+    private Integer quoteCount;
     private LocalDateTime createdAt;
 
     public static PostResponseDto from(
@@ -32,6 +34,7 @@ public class PostResponseDto {
                 .id(entity.getId())
                 .userId(entity.getUserId())
                 .parentId(entity.getParentId())
+                .quoteId(entity.getQuoteId())
                 .content(entity.getContent())
                 .liked(liked)
                 .reposted(reposted)
@@ -39,6 +42,7 @@ public class PostResponseDto {
                 .likeCount(entity.getLikeCount())
                 .commentCount(entity.getCommentCount())
                 .repostCount(entity.getRepostCount())
+                .quoteCount(entity.getQuoteCount())
                 .createdAt(entity.getCreatedAt())
                 .build();
     }
