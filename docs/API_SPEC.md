@@ -64,6 +64,7 @@
 - [9. 이벤트 (RabbitMQ 대비)](#9-이벤트-rabbitmq-대비-)
   - [9.1 메시지 브로커](#91-메시지-브로커-)
   - [9.2 이벤트 메시지 형식](#92-이벤트-메시지-형식-)
+  - [9.3 Outbox (이벤트 유실 방지)](#93-outbox-이벤트-유실-방지-)
 - [10. 데이터 모델](#10-데이터-모델)
   - [10.1 현재 테이블](#101-현재-테이블)
   - [10.2 추가할 것](#102-추가할-것-)
@@ -76,6 +77,13 @@
   - [13.3 SSE 형식](#133-sse-형식)
   - [13.4 저장](#134-저장)
   - [13.5 에러](#135-에러)
+- [14. 외부 피드: X 홈 타임라인](#14-외부-피드-x-홈-타임라인-)
+  - [14.1 X API 조건](#141-x-api-조건-2026-11-21-확인-바뀌므로-구현-직전에-다시-확인)
+  - [14.2 구조](#142-구조)
+  - [14.3 API (우리 서버)](#143-api-우리-서버)
+  - [14.4 보안 체크](#144-보안-체크)
+  - [14.5 비용 안전장치](#145-비용-안전장치-기능보다-먼저-만든다)
+  - [14.6 비공식 서비스를 쓰지 않는 이유](#146-비공식-서비스를-쓰지-않는-이유-2026-11-21-조사)
 - [부록 A. DB 피드 테이블 (Redis 대신 쓸 경우)](#부록-a-db-피드-테이블-redis-대신-쓸-경우)
 
 ---
@@ -94,6 +102,14 @@
 - post-feed 쪽 패키지는 user 쪽 클래스(Entity, Repository, Service)를 **import 하지 않는다.** 서비스 사이에는 **id(숫자)만** 주고받는다.
 - 경계를 넘어야 하는 곳은 **인터페이스 하나**로 모은다. 예: 피드가 팔로워·팔로잉 목록을 얻는 `FollowReader` (§7.4).
 - 닉네임 등 사용자 표시 정보는 프론트가 `GET /users?ids=` 로 따로 조회한다.
+
+**지금 경계를 넘는 곳** (서비스 분리 전에 정리, 2026-11-21 확인)
+
+| 위치 | 넘는 방향 | 분리 후 |
+|---|---|---|
+| `UsersService.deleteAccount` 가 Post·PostLike·Repost 리포지토리 사용 | user → post | `user.deleted` 이벤트로 넘긴다 (§4.4) |
+| `ProfileService.getPostCount` 가 `postRepository.countByUserIdAndParentIdIsNull` 사용 | user → post | post-feed 의 "사용자별 원글 수" API 를 HTTP 로 묻거나(`FollowReader` 의 반대 방향 인터페이스), 프론트가 따로 받는다 |
+| 피드가 팔로우 목록 사용 | post → user | `FollowReader` (§7.4) |
 
 ---
 
@@ -313,10 +329,33 @@
 | 내 인용 글 | 글과 함께 삭제 + 원글 `quote_count - 1` | §6.10 |
 | 팔로우 | 내가 한 것·받은 것 모두 삭제 | 상대의 팔로워·팔로잉 수가 바로 맞아야 한다 |
 | 알림 | `user.deleted` 이벤트 발행 → 알림 서비스가 그 사용자의 알림(받은 것·보낸 것)을 지운다 | 알림 서비스는 users 테이블을 모른다 (§9, §13) |
+| 30일 후 완전 삭제 | 미정. 배포 뒤 매일 도는 작업으로 (`@SQLRestriction` 을 우회하는 네이티브 쿼리) | 개인정보 보관 기간 |
 | 이미 발급된 JWT | 토큰은 서버가 무효화할 수 없으므로, 인증 필터가 탈퇴한 사용자면 `401` | 쿠키를 지워도 다른 기기의 토큰이 남아 있을 수 있다 |
 
-- 처음에는 한 트랜잭션에서 처리한다. 여러 행을 잠그므로 순서를 일정하게 둔다 (예: 좋아요 → 재게시 → 팔로우 → 글 → 사용자). 글·좋아요가 많아 느려지면 사용자만 먼저 soft delete 하고 나머지는 이벤트로 나눠 비동기 정리한다.
 - 프론트: 프로필 수정 창 아래 "계정 삭제" → 비밀번호 입력 확인 창 → 성공하면 로그아웃 상태로 로그인 화면.
+
+**누가 무엇을 정리하나** (2026-11-21 결정: 서비스 경계 §1 에 맞춰 `user.deleted` 이벤트로 나눈다)
+
+처음 구현(2026-11-20)은 `UsersService.deleteAccount` 한 트랜잭션에서 posts·post_likes·reposts 까지 직접 지웠다. 서비스를 나누면 user-service 는 그 테이블에 접근할 수 없으므로, **각 데이터의 주인이 자기 것을 정리**한다.
+
+```
+[user-service] deleteAccount (한 트랜잭션)          [post-feed-service] user.deleted 리스너 (한 트랜잭션)
+ 1. 비밀번호 확인                                    1. 좋아요: 그 글들 like_count -1   → 행 삭제
+ 2. user.withdraw()                                  2. 재게시: 그 글들 repost_count -1 → 행 삭제
+ 3. 팔로우 삭제 (follows 는 user 쪽)                 3. 답글: 부모마다 comment_count -n (집계 → 반복)
+ 4. user.deleted 발행 (커밋 후) ── RabbitMQ ──▶      4. 인용: 원글마다 quote_count -n   (집계 → 반복)
+                                                     5. 그 사용자 글 전부 soft delete   ← 3·4 다음
+                                              ──▶ [notification-service] 그 사용자가 받은·보낸 알림 삭제
+```
+
+| 규칙 | 이유 |
+|---|---|
+| 최종 일관성 | 탈퇴 직후 잠깐 그 사용자의 글·숫자가 남았다가 정리된다. 허용 |
+| 리스너 전체를 **한 트랜잭션** | 중간에 실패하면 전부 롤백 → 메시지를 다시 받아 처음부터 |
+| 두 번 받아도 안전 (멱등) | 첫 실행에서 좋아요·재게시 행이 지워지고 글이 soft delete 되므로, 두 번째 실행의 서브쿼리·집계는 0건이라 아무것도 빠지지 않는다. **"빼기 먼저 → 지우기 나중", "soft delete 는 집계 다음" 순서가 이 성질을 만든다** |
+| 이벤트 유실 | 커밋 후 발행 전에 죽으면 정리가 영영 안 된다 → 서비스 분리 직후 **Outbox** (§12) |
+
+**분리 전 중간 단계** (모놀리스 안에서 경계부터 지킨다): `UsersService` 는 위 user-service 1~4 만 하고 post 쪽 리포지토리를 주입하지 않는다. post 패키지에 `UserDeletedListener` 를 두고 `@TransactionalEventListener(AFTER_COMMIT)` + `@Transactional(propagation = REQUIRES_NEW)` 로 정리한다. 분리할 때는 이 리스너의 입구만 `@RabbitListener` 로 바꾼다.
 
 ---
 
@@ -790,6 +829,7 @@ X 와 Threads 를 섞는다.
 | `repost.created` | RepostService | actorId, recipientId(원글 작성자), postId. 재게시했을 때만 (§6.8) | 피드, 알림 |
 | `quote.created` | PostService | actorId, recipientId(인용된 글 작성자), postId(새 인용 글) (§6.10) | 피드(`POST` 항목), 알림 |
 | `follow.created` | FollowService | actorId(팔로우한 사람), recipientId(팔로우 받은 사람) | 피드, 알림 |
+| `user.deleted` | UsersService | actorId(탈퇴한 사람). 나머지 null (§4.4) | post-feed(글·좋아요·재게시 정리), 알림(그 사용자 알림 삭제), 피드 |
 
 - 모두 **커밋 후** 발행한다.
 - 필드 이름과 모양은 §9.2 봉투를 따른다. 알림 받을 사람의 id(`recipientId`)를 이벤트에 담는다. 알림 서비스는 posts 테이블을 모르기 때문이다.
@@ -803,7 +843,8 @@ X 와 Threads 를 섞는다.
 |---|---|
 | exchange | `sns.events` — topic exchange, durable |
 | routing key | 이벤트 `type` 그대로. 예: `follow.created` |
-| 알림 서비스 큐 | `notification.events` (durable) — `follow.created`, `reply.created`, `like.created`, `repost.created`, `quote.created` 를 바인딩 |
+| 알림 서비스 큐 | `notification.events` (durable) — `follow.created`, `reply.created`, `like.created`, `repost.created`, `quote.created`, `user.deleted` 를 바인딩 |
+| post-feed 큐 | 서비스 분리 후 `post-feed.events` (durable) — `user.deleted`. 분리 전에는 모놀리스 안의 스프링 이벤트로 처리 (§4.4) |
 | 처리 실패 | 알림 서비스가 처리하지 못한 메시지는 `notification.events.dlq` 로 보낸다 (dead-letter) |
 | 메시지 | JSON, UTF-8, `content-type: application/json`, persistent |
 | 전달 보장 | **최소 한 번**. 같은 메시지가 두 번 올 수 있으므로 소비자는 `eventId` 로 중복을 거른다 |
@@ -843,9 +884,37 @@ X 와 Threads 를 섞는다.
 | `like.created` | 누른 사람 | 글 작성자 | 글 id | null |
 | `repost.created` | 재게시한 사람 | 원글 작성자 | 원글 id | null |
 | `quote.created` | 인용한 사람 | 인용된 글 작성자 | **새 인용 글 id** (알림을 누르면 인용 글로 간다) | null |
+| `user.deleted` | 탈퇴한 사람 | null | null | null |
+
+- `user.deleted` 는 알림을 만드는 이벤트가 아니라 **정리 요청**이다. 알림 서비스는 저장하지 않고 `recipient_id = actorId` 또는 `actor_id = actorId` 인 알림을 지운다.
 
 - `actorId == recipientId`(내 글에 내가 좋아요·답글)여도 **발행한다**. 이벤트는 "일어난 일"이고, 누구에게 알릴지는 알림 서비스가 정한다. 알림 서비스는 `actorId == recipientId` 이면 저장하지 않는다 (셀프 팔로우는 API 에서 막는다).
 - 이름(닉네임)은 이벤트에 넣지 않는다. 닉네임은 바뀔 수 있으므로 프론트가 `GET /users?ids=` 로 그때그때 받는다 (게시글 작성자 이름과 같은 방식).
+
+### 9.3 Outbox (이벤트 유실 방지) 📝
+
+**문제**: 지금은 커밋 후(`AFTER_COMMIT`)에 RabbitMQ 로 보낸다. 커밋과 발행 사이에 서버가 죽거나 RabbitMQ 가 꺼져 있으면 이벤트가 사라진다 (2026-11-19 동시성 테스트 로그의 "rabbitmq 이벤트 발행 실패"). 알림 하나는 작은 손실이지만, **`user.deleted` 가 사라지면 탈퇴자의 좋아요·재게시가 남의 글 숫자에 영원히 남는다** (§4.4). 모놀리스 안의 `UserDeletedListener` 도 메모리 이벤트라 커밋 직후 재시작되면 같은 일이 생긴다.
+
+**방식**: 이벤트를 "보내는" 대신 **같은 트랜잭션에서 DB 에 저장**하고, 별도 작업이 나중에 보낸다.
+
+```
+[업무 트랜잭션]                                   [릴레이: @Scheduled, 몇 초마다]
+ users / posts 변경                               outbox 에서 PENDING 을 오래된 순으로 N개
+ outbox 에 insert (PENDING)   ── 커밋 ──▶          → RabbitMQ 발행 → SENT, sent_at 기록
+ (둘 다 저장되거나, 둘 다 안 되거나)                 → 실패하면 PENDING 그대로, attempts + 1 → 다음 주기
+```
+
+| 항목 | 내용 |
+|---|---|
+| 테이블 | `outbox_events(id, event_id unique, type, payload JSON, status PENDING/SENT/FAILED, attempts, created_at, sent_at)` / 인덱스 `(status, id)` |
+| 쓰는 곳 | 지금 `eventPublisher.publishEvent(...)` 하는 곳을 그대로 두고, 리스너를 `BEFORE_COMMIT`(같은 트랜잭션)에서 outbox insert 하도록 바꾼다. 서비스 코드는 거의 안 바뀐다 |
+| 릴레이 | 서버가 여러 대면 같은 행을 두 번 보내지 않게 `SELECT ... FOR UPDATE SKIP LOCKED`. 한 대일 때는 단순 조회로 시작 |
+| 포기 | `attempts` 가 N(예: 10) 넘으면 `FAILED` 로 두고 로그 → 사람이 확인 (무한 재시도 금지, §14.5 와 같은 원칙) |
+| 정리 | `SENT` 는 7일 뒤 삭제 |
+| 전달 보장 | **최소 한 번**. 발행 후 `SENT` 표시 전에 죽으면 다시 보낸다 → 받는 쪽이 중복에 안전해야 한다. 알림은 `event_id` unique, 탈퇴 정리는 두 번 실행해도 결과가 같다 (§4.4) — **받는 쪽은 이미 준비됨** |
+| 모놀리스 안 리스너 | `UserDeletedListener` 도 메모리 이벤트 대신 **RabbitMQ 에서 받게** 바꾼다 (서비스 분리 때 어차피 할 일). 그래야 재시작에도 정리가 남는다 |
+
+**확인 방법**: RabbitMQ 를 끈 채 탈퇴 → outbox 에 `PENDING` 1행 → RabbitMQ 를 켜면 몇 초 안에 `SENT` 가 되고, 카운트 = 행 수 확인 쿼리(§4.4)가 0건.
 
 ---
 
@@ -914,11 +983,24 @@ X 와 Threads 를 섞는다.
 | 3 | 재게시 (§6.8) + 인용 재게시 (§6.10) + REPOST 항목 | 재게시가 피드·프로필에 보임, 인용 글에 원글 상자가 보임 |
 | 4 | 프로필 (§8) | 4개 탭, 프로필 수정 |
 | 5 | 알림 서비스 (Spring, RabbitMQ, SSE) | 답글·좋아요·팔로우 알림 실시간 수신 |
-| 6 | 서비스 분리 | user / post-feed 별도 기동, `FollowReader` HTTP 구현 |
+| 5.5 | 회원 탈퇴 (§4.4) ✅ | 탈퇴 후 모든 글의 카운트 = 실제 행 수, 알림 정리 (2026-11-21 확인) |
 
-**범위 밖**: 여러 장 이미지·동영상(이미지 1장 업로드는 §6.9), 외부 SNS(X API) 연동과 리다이렉션, 해시태그, 검색.
+**앞으로의 순서** (2026-11-21 정리)
 
-**외부 SNS 연동을 하게 되면** (§11): 별도 `integration-service`가 OAuth 토큰(암호화 저장)·rate limit·외부 장애를 맡고, 피드와는 이벤트로만 연결한다. 피드 항목 `type`에 `EXTERNAL`을 추가하면 피드 구조는 그대로 쓸 수 있다. 6단계(서비스 분리) 이후에 진행한다.
+| 단계 | 내용 | 완료 기준 |
+|---|---|---|
+| 6 | 알림 마무리: SSE 구독 직후 첫 이벤트(주석) 전송, 15초 ping (§13.3) | 새로고침해도 🔔 가 바로 "실시간 연결됨" |
+| 7 | 외부 피드: X 홈 타임라인 (§14). **Fake 로 개발**, 실제 호출은 확인용만 | X 연결 → X 탭에 내 홈 타임라인. 안전장치(§14.5) 동작 |
+| 8 | 테스트 (JUnit + Testcontainers) | 동시성(카운트 = 행 수), 탈퇴 정리, 재게시 탭 페이지 넘김이 자동으로 검증됨 |
+| 9 | **Outbox** (§9.3) | RabbitMQ 를 끈 채 탈퇴 → 다시 켜면 정리가 끝까지 됨 |
+| 10 | 서비스 분리 | user / post-feed 별도 기동, `FollowReader`·글 수 조회 HTTP, `user.deleted` 를 RabbitMQ 로 수신 |
+| 11 | Docker Compose → CI → 배포 (HTTPS, 모바일 브라우저) | 공개 주소에서 동작 |
+
+- **Outbox 를 서비스 분리보다 앞에 둔 이유**: 탈퇴 정리가 `user.deleted` 이벤트에 의존하게 되면서(§4.4), 이벤트가 사라지면 남의 글 숫자가 영원히 틀어진다. 지금의 모놀리스 안 리스너도 메모리 이벤트라 커밋 직후 재시작되면 같은 문제가 생긴다.
+- **테스트를 Outbox·분리보다 앞에 둔 이유**: 둘 다 큰 리팩터링이라, 지금 손으로 확인한 시나리오를 자동 테스트로 먼저 고정해 둔다.
+- X 연동은 읽기 전용 동기 호출이라 이벤트 순서와 상관없다. 탈퇴 시 토큰 폐기만 `user.deleted` 를 받는다.
+
+**범위 밖**: 여러 장 이미지·동영상(이미지 1장 업로드는 §6.9), X 에 글쓰기·크로스포스팅, 외부 피드를 우리 피드와 섞기(1차는 별도 탭), 해시태그, 검색.
 
 ---
 
@@ -982,6 +1064,112 @@ data: {"id":42,"type":"reply.created","actorId":7,"postId":120,"createdAt":"2026
 ### 13.5 에러
 
 다른 서비스와 같은 `{ "code", "message", "status" }` 형식. 응답 헤더 `X-Trace-Id` 를 붙인다.
+
+---
+
+## 14. 외부 피드: X 홈 타임라인 📝
+
+사용자가 X 계정을 연결하면, 우리 앱 안에서 **그 사람의 X 홈 타임라인**(X 에서 팔로우한 사람들의 글, 최신순)을 본다. 읽기만 한다 (X 에 글쓰기는 범위 밖). 플랫폼 선택: X (2026-11-21 결정. 비교한 후보: Bluesky·Mastodon 은 무료, Threads 는 홈 피드 API 없음).
+
+**방식: X 공식 API + 개발용 Fake** (2026-11-21 결정). 비공식 서비스를 쓰지 않는 이유는 §14.6.
+
+### 14.1 X API 조건 (2026-11-21 확인. 바뀌므로 구현 직전에 다시 확인)
+
+| 항목 | 내용 |
+|---|---|
+| 엔드포인트 | `GET /2/users/{id}/timelines/reverse_chronological` — 팔로우한 계정의 글, 알고리즘 정렬 없음, 최근 3,200개(또는 7일) |
+| 인증 | **사용자 컨텍스트** 필수: OAuth 2.0 Authorization Code + **PKCE** (또는 OAuth 1.0a User Context). 앱 토큰(Bearer) 만으로는 안 된다 |
+| 스코프 | `tweet.read`, `users.read` (+ 토큰 갱신용 `offline.access`) |
+| rate limit | 사용자당 15분에 180회 |
+| 요금 | 2026-02 부터 **사용량 과금(pay-per-use)** 이 기본, 일반 무료 등급 없음. 개발자 콘솔에서 크레딧을 먼저 사서 요청마다 차감. 글 읽기는 **돌려받은 글 1개당** $0.005, "내 데이터"(owned read) 는 $0.001 — 홈 타임라인이 어느 쪽인지는 문서에 없음 → 첫 호출 후 차감액으로 확인. 월 상한 200만~300만 글. 신규 가입 일회성 크레딧이 있다는 정보가 있으나 금액은 출처마다 다름 → 콘솔에서 확인 |
+| 약관 | 가져온 글을 표시할 때 작성자 표시, X 에서 삭제된 글은 우리 쪽에서도 지워야 한다(저장한다면). → **저장하지 않고 짧게 캐시만** 한다 |
+
+**비용 예상** ($0.005 기준. owned read 면 1/5)
+
+| 상황 | 비용 |
+|---|---|
+| 한 번 열기 (10개) | 약 $0.05 |
+| 개발: Fake 로 만들고 확인용 실제 호출 20번 | **약 $1~2** |
+| 개발: Fake 없이 실제 API 로 2주 (하루 50번 열기, 캐시로 절반) | 약 $17~35 |
+| 배포 후 시연 (내 계정만 연결, 60초 캐시) | 한 달 $1 미만 |
+| **무한 재시도 버그** (예: 2026-11-21 알림 서비스가 몇 초에 4,277번 재시도한 것과 같은 일) | **수백 달러** |
+
+→ 비용 위험의 대부분은 사용량이 아니라 **버그로 인한 반복 호출**이다. 그래서 §14.5 안전장치를 기능보다 먼저 만든다.
+
+### 14.2 구조
+
+| 항목 | 결정 |
+|---|---|
+| 위치 | `integration` 패키지 (분리 후 `integration-service`). `@ConditionalOnProperty(name = "integration.x.enabled")` 로 켜고 끈다. 꺼져 있으면 프론트에 탭을 숨긴다 |
+| X 호출 | **인터페이스 `XTimelineClient` 뒤로 숨긴다** (아래). 서비스는 어느 구현인지 모른다 |
+| 화면 | 우리 피드와 섞지 않고 **"X" 탭** 으로 따로 [결정]. 섞으면 커서(우리: 글 id, X: `pagination_token` 문자열)를 합쳐야 한다 (§6.8 2차와 같은 문제) |
+| 저장 | `external_accounts(user_id, provider, external_user_id, username, access_token_enc, refresh_token_enc, expires_at, created_at)` / unique(user_id, provider). 토큰은 **AES-GCM 등으로 암호화**, 키는 환경변수 |
+| 글 저장 | 하지 않는다. 사용자별로 **60초 캐시**(Redis) [결정] — 비용과 rate limit 보호 |
+| 실패 격리 | X 호출 타임아웃 3초. 실패하면 X 탭만 "불러오지 못했습니다", 우리 피드는 영향 없음 |
+| 탈퇴·연결 해제 | 토큰 삭제 + X 의 토큰 폐기(revoke) 호출. 탈퇴는 `user.deleted` 이벤트를 integration 쪽도 받는다 (§4.4) |
+
+**X 호출 인터페이스**
+
+```
+XTimelineClient                      ← 서비스는 이것만 안다
+ ├ OfficialXClient   실제 X API (사용자 OAuth 토큰으로 reverse_chronological)
+ └ FakeXClient       고정된 가짜 글 목록 · 일부러 실패/지연시키는 모드 (비용 0)
+```
+
+| 설정 | 값 | 뜻 |
+|---|---|---|
+| `integration.x.client` | `fake` (**기본값**) / `official` | 어느 구현을 쓸지. `@ConditionalOnProperty` 로 하나만 빈으로 등록 |
+| `integration.x.fake.mode` | `ok` / `slow` / `error` / `expired` | Fake 가 정상·지연(타임아웃 확인)·장애(503)·토큰 만료(401)를 흉내 내게 → 실패 처리를 무료로 테스트 |
+
+- 화면·캐시·커서·실패 처리·연결 해제는 **전부 Fake 로 완성**하고, `official` 은 마지막 확인 때만 켠다.
+- 다른 플랫폼(Bluesky 등)을 붙이게 되면 이 인터페이스를 `ExternalFeedClient` 로 일반화한다.
+
+### 14.3 API (우리 서버)
+
+| 메서드 | 경로 | 설명 |
+|---|---|---|
+| GET | `/integrations/x/connect` | X 인증 화면으로 리다이렉트. `state`·PKCE `code_verifier` 를 만들어 서버 세션(또는 Redis, 10분)에 둔다 |
+| GET | `/integrations/x/callback?code=&state=` | `state` 확인 → `code` 를 토큰으로 교환 → 암호화 저장 → 프론트 설정 화면으로 리다이렉트 |
+| GET | `/integrations/x` | 연결 상태 `{ "connected": true, "username": "jack" }` |
+| DELETE | `/integrations/x` | 연결 해제 → `204` |
+| GET | `/integrations/x/timeline?cursor=&size=` | `{ "items": [XPost...], "nextCursor": "문자열 또는 null" }` |
+
+`XPost`: `{ "id", "text", "createdAt", "author": { "id", "username", "name", "profileImageUrl" }, "url" }` — 우리 `PostResponse` 와 모양이 다르므로 프론트는 별도 카드로 그린다. 누르면 X 원문(`url`)으로 간다.
+
+에러: `409 X_NOT_CONNECTED`(연결 안 됨), `401 X_TOKEN_EXPIRED`(갱신도 실패 → 다시 연결), `503 X_UNAVAILABLE`(타임아웃·장애), `429 X_RATE_LIMITED`.
+
+### 14.4 보안 체크
+
+- `state` 로 CSRF 를 막고, PKCE 로 code 탈취를 막는다. `redirect_uri` 는 X 개발자 콘솔에 등록한 값과 **정확히** 같아야 한다 (로컬: `http://localhost:5173/api/v1/integrations/x/callback` 등. 배포 후 HTTPS 주소 추가).
+- 토큰은 응답·로그에 절대 내보내지 않는다. 클라이언트 ID·시크릿, 암호화 키는 `application-secret.properties`·환경변수.
+- access token 은 짧게 만료된다 → `refresh_token` 으로 갱신, 갱신 실패 시 연결 해제 상태로.
+
+### 14.5 비용 안전장치 (기능보다 먼저 만든다)
+
+| # | 장치 | 내용 |
+|---|---|---|
+| 1 | 기본값 Fake | `integration.x.client` 기본 `fake`. 실제 API 는 설정을 바꿨을 때만 |
+| 2 | 소액 선불 | 크레딧은 $5~10 만 충전, **자동 충전 끔**. 충전액이 곧 최대 손실 |
+| 3 | 우리 쪽 일일 상한 | 서버 전체 X 호출 하루 100회(설정값). 넘으면 `429 X_RATE_LIMITED`. X 의 한도(15분 180회)보다 **우리 상한이 먼저** 걸린다 |
+| 4 | **자동 재시도 금지** | X 호출이 실패하면 서버도 프론트도 다시 부르지 않는다. 사용자가 "다시 시도" 를 눌러야만. (알림 서비스의 `requeue` 무한 반복과 같은 일을 처음부터 막는다) |
+| 5 | 캐시·크기 | 사용자별 60초 캐시, 한 번에 10개(`size` 최대 20), X 탭 자동 새로고침 없음 |
+| 6 | 호출 기록 | 실제 호출마다 로그 한 줄(사용자 id, 받은 글 수). 토큰은 남기지 않는다. 하루 사용량을 눈으로 확인 |
+
+### 14.6 비공식 서비스를 쓰지 않는 이유 (2026-11-21 조사)
+
+| 후보 | 결과 |
+|---|---|
+| twitterapi.io | 공개 데이터만, 계정 단위 감시 월정액. **홈 타임라인 없음**. "X 와 제휴 아님" |
+| APICK X 게시물 조회 | 글 주소 하나 → 글 하나. 공개 글만, 2~5초. 출처 미공개 |
+| FxTwitter(FxEmbed) | 무료·무인증. 글·프로필·팔로잉 목록은 있으나 **홈 타임라인 없음**. 운영자 X 계정 쿠키로 내부 API 호출 |
+| GetXAPI 등 호출당 과금 대행 | 홈 타임라인 지원 확인 안 됨. 비교 글 대부분이 업체 홍보 |
+| twscrape·twikit (로그인 세션) | 홈 타임라인까지 가능하지만 **X 개발자 가이드라인: 스크래핑·브라우저 자동화 금지, 위반 시 영구 정지**. 쿠키(`auth_token`)는 계정 전체 권한이라 유출 = 계정 탈취 |
+
+- "본인 계정의 홈 타임라인" 을 정식으로 주는 것은 **X 공식 API 뿐**이다. 팔로잉 목록 + 계정별 글로 흉내 내면 팔로잉 수만큼 호출이 필요하고 결과도 다르다.
+- 비공식 서비스는 언제든 막히거나 사라질 수 있고, 쓰는 쪽도 약관 위반 위험을 진다. 포트폴리오에서도 "공식 OAuth 2.0 + PKCE, 토큰 암호화, 비용 안전장치" 가 설명하기 좋다.
+- X 글 **링크 미리보기**가 필요해지면 공식 oEmbed(무료, 무인증)를 쓴다.
+
+참고: [X timelines 문서](https://docs.x.com/x-api/posts/timelines), [v2 인증 매핑](https://docs.x.com/fundamentals/authentication/guides/v2-authentication-mapping)
 
 ---
 

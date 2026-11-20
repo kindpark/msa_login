@@ -3,12 +3,10 @@ package com.example.login.user;
 import com.example.login.auth.AuthRepository;
 import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
+import com.example.login.event.EventMessage;
 import com.example.login.follow.FollowRepository;
-import com.example.login.post.ParentIdAndCount;
-import com.example.login.post.PostRepository;
-import com.example.login.postlike.PostLikeRepository;
-import com.example.login.repost.RepostRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,11 +19,10 @@ import java.util.List;
 public class UsersService {
     private final UsersRepository usersRepository;
     private final AuthRepository authRepository;
-    private final PostRepository postRepository;
-    private final PostLikeRepository postLikeRepository;
-    private final RepostRepository repostRepository;
     private final FollowRepository followRepository;
     private final PasswordEncoder passwordEncoder;
+    private final ApplicationEventPublisher eventPublisher;
+
     @Transactional
     public Long signUp(SignupRequestDto request){
         if(usersRepository.existsByEmail(request.getEmail())){
@@ -47,7 +44,7 @@ public class UsersService {
     public void deleteAccount(DeleteAccountRequestDto request, Long userId){
         // 1. 회원 조회
         Users user = usersRepository.findById(userId)
-                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+                .orElseThrow(() -> new BusinessException(ErrorCode.UNAUTHORIZED));
 
         // 본인 확인 (일반 로그인 회원의 경우 비밀번호 검증)
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
@@ -56,24 +53,9 @@ public class UsersService {
         // 회원 상태 변경 및 개인정보 마스킹 (Soft Delete)
         user.withdraw();
 
-        // 탈퇴 유저의 좋아요 카운트 감소
-        postRepository.decreaseLikeCountOfPostsLikedBy(userId);
-        postLikeRepository.deleteAllByUserId(userId);
-        // 탈퇴 유저의 리포스트 카운트 및 리포스트 게시글 삭제 감소
-        postRepository.decreaseRepostCountOfPostsRepostedBy(userId);
-        repostRepository.deleteAllByUserId(userId);
-        // 얼마나 답글을 남겼는지 보고 해당 수 만큼 답글 전체 삭제
-        List<ParentIdAndCount> replies = postRepository.countRepliesPerParentByUser(userId);
-        for (ParentIdAndCount reply : replies) {
-            postRepository.decreaseCommentCountBy(reply.getParentId(), reply.getCount());
-        }
-        // 인용도 마찬가지로
-        List<ParentIdAndCount> quotes = postRepository.countQuotesPerOriginalByUser(userId);
-        for (ParentIdAndCount quote : quotes) {
-            postRepository.decreaseQuoteCountBy(quote.getParentId(), quote.getCount());
-        }
-        postRepository.softDeleteAllByUserId(userId);
         followRepository.deleteAllByUser(userId);
+
+        eventPublisher.publishEvent(EventMessage.ofUserDeleted(userId));
         // (선택) 완전 삭제(Hard Delete)를 원할 경우 위 withdraw() 대신 아래 코드 사용
         //usersRepository.delete(user);
     }

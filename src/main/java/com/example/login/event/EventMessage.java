@@ -2,6 +2,7 @@ package com.example.login.event;
 
 import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
+import com.example.login.post.UserDeletedListener;
 import lombok.Getter;
 
 import java.time.Instant;
@@ -15,7 +16,7 @@ public class EventMessage {
     private static final String TYPE_REPLY_CREATED = "reply.created";
     private static final String TYPE_REPOST_CREATED = "repost.created";
     private static final String TYPE_QUOTE_CREATED = "quote.created";
-
+    private static final String TYPE_USER_DELETED = "user.deleted";
     private final String eventId;
     private final String type;
     private final Instant occurredAt;
@@ -115,6 +116,20 @@ public class EventMessage {
                 userId,
                 recipientId,
                 postId,
+                null
+        );
+    }
+    public static EventMessage ofUserDeleted(
+            Long userId
+    ){
+
+        return new EventMessage(
+                UUID.randomUUID().toString(),
+                TYPE_USER_DELETED,
+                Instant.now(),
+                userId,
+                null,
+                null,
                 null
         );
     }
