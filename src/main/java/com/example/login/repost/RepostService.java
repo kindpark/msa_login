@@ -83,7 +83,7 @@ public class RepostService {
         postRepository.increaseQuoteCount(postId);
 
         feedCache.evict(userId);
-        eventPublisher.publishEvent(ofQuote(post.getUserId(), userId, savedPost.getId()));
+        eventPublisher.publishEvent(ofQuote(userId, post.getUserId(), savedPost.getId()));
 
         return PostResponseDto.from(savedPost, false, false);
     }

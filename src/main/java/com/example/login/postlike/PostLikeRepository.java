@@ -1,6 +1,7 @@
 package com.example.login.postlike;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -15,4 +16,8 @@ public interface PostLikeRepository extends JpaRepository<PostLike, Long> {
     @Query("SELECT l.postId FROM PostLike l WHERE l.postId IN :postIds AND l.userId = :userId")
     Set<Long> findLikedPostIds(@Param("postIds") Collection<Long> postIds, @Param("userId") Long userId);
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from PostLike l" +
+            " where l.userId =:userId")
+    void deleteAllByUserId(@Param("userId") Long userId);
 }

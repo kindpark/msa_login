@@ -2,6 +2,7 @@ package com.example.login.follow;
 
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -20,6 +21,10 @@ public interface FollowRepository extends JpaRepository<Follow, Long> {
     @Query("select f.followerId from Follow f where f.followingId = :followingId")
     List<Long> findFollowerIds(@Param("followingId") Long followingId);
 
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from Follow f" +
+            " where f.followerId =:userId or f.followingId =:userId")
+    void deleteAllByUser(@Param("userId") Long userId);
 
     Long countByFollowerId(Long followerId);
 

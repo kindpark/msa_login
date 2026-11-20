@@ -176,5 +176,50 @@ public interface PostRepository extends JpaRepository<Post, Long> {
             " from Post p" +
             " where p.id =:id")
     Optional<Post> findByIdForUpdate(@Param("id") Long id);
+    // 글 좋아요 1행 감소
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Post p set p.likeCount = p.likeCount-1" +
+            " where p.id in (select l.postId from PostLike l" +
+            " where l.userId =:userId)")
+    void decreaseLikeCountOfPostsLikedBy(@Param("userId")Long userId);
+    // repost 카운트 감소
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Post p set p.repostCount = p.repostCount-1" +
+            " where p.id in (select r.postId from Repost r" +
+            " where r.userId =:userId)")
+    void decreaseRepostCountOfPostsRepostedBy(@Param("userId")Long userId);
+    // 탈퇴할 사람이 부모 글마다 단 답글 수 (부모 commentCount 에서 뺄 양)
+    @Query("select r.parentId as parentId, count(r) as count from Post r" +
+            " where r.userId= :userId and r.parentId is not null" +
+            " group by r.parentId")
+    List<ParentIdAndCount> countRepliesPerParentByUser(@Param("userId") Long userId);
+
+    // 탈퇴할 사람이 원글마다 쓴 인용 글 수 (원글 quoteCount 에서 뺄 양)
+    @Query("select r.quoteId as parentId, count(r) as count from Post r" +
+            " where r.userId= :userId and r.quoteId is not null" +
+            " group by r.quoteId")
+    List<ParentIdAndCount> countQuotesPerOriginalByUser(@Param("userId") Long userId);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+    UPDATE Post p
+    SET p.commentCount = GREATEST(p.commentCount - :n, 0)
+    WHERE p.id = :id
+""")
+    void decreaseCommentCountBy(@Param("id") Long id, @Param("n") long n);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+    UPDATE Post p
+    SET p.quoteCount = GREATEST(p.quoteCount - :n, 0)
+    WHERE p.id = :id
+""")
+    void decreaseQuoteCountBy(@Param("id") Long id, @Param("n") long n);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Post p set p.isDeleted=true" +
+            " where p.userId =:userId")
+    void softDeleteAllByUserId(@Param("userId")Long userId);
+
 }
 

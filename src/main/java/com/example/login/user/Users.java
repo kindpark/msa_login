@@ -1,8 +1,10 @@
 package com.example.login.user;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.SQLRestriction;
 
 import java.time.LocalDateTime;
 
@@ -11,6 +13,7 @@ import java.time.LocalDateTime;
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
+@SQLRestriction("deleted_at is null")
 @Builder
 public class Users {
     @Id
@@ -45,34 +48,45 @@ public class Users {
     @Column(updatable = true)
     private LocalDateTime updatedAt;
 
+    @Column(updatable = true)
+    private LocalDateTime deletedAt;
+
     // 엔티티는 외부 기술(PasswordEncoder 등)을 몰라야 함.
     // 비즈니스 메서드는 순수한 값만 인자로 받아서 변경함.
     public void changePassword(String newEncodedPassword) {
         this.passwordHash = newEncodedPassword;
     }
-
     public void updateUsersInfo(
             String nickname,
+            @Size(max=500)
             String profileImageUrl,
             String bio,
             String handle,
+            @Size(max=500)
             String bannerImageUrl
     ){
-        if (handle != null) {
-            this.handle = handle;
-        }
-        if (nickname != null) {
-            this.nickname = nickname;
-        }
-        if (bio != null) {
-            this.bio = bio;
-        }
-        if (profileImageUrl != null) {
-            this.profileImageUrl = profileImageUrl;
-        }
-        if (bannerImageUrl != null) {
-            this.bannerImageUrl = bannerImageUrl;
-        }
+        this.nickname = merge(nickname, this.nickname);
+        this.bio = merge(bio, this.bio);
+        this.handle = merge(handle, this.handle);
+        this.profileImageUrl = merge(profileImageUrl, this.profileImageUrl);
+        this.bannerImageUrl = merge(bannerImageUrl, this.bannerImageUrl);
         updatedAt = LocalDateTime.now();
+    }
+    private String merge(String a, String b){
+        if(a == null){
+            return b;
+        }
+        if(a.isBlank()) {
+            return null;
+        }
+        return a;
+    }
+
+    public void withdraw(){
+        this.role = "deleted";
+
+        this.handle = null;
+        this.deletedAt = LocalDateTime.now();
+        this.email = "deleted_" + this.id + "_" + this.email;
     }
 }
