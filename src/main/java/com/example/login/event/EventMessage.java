@@ -2,7 +2,6 @@ package com.example.login.event;
 
 import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
-import com.example.login.post.UserDeletedListener;
 import lombok.Getter;
 
 import java.time.Instant;

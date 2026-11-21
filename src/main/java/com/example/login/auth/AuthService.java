@@ -5,7 +5,6 @@ import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
 import com.example.login.security.JwtUtil;
 import com.example.login.user.Users;
-import com.example.login.user.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;

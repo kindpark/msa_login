@@ -19,6 +19,8 @@ public class ProfileRequestDto {
     private String nickname;
     @Size(max=255, message = "자기소개는 최대 255자까지 작성할 수 있습니다.")
     private String bio;
+    @Size(max=500)
     private String profileImageUrl;
+    @Size(max=500)
     private String bannerImageUrl;
 }

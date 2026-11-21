@@ -1,6 +1,5 @@
 package com.example.login.feed;
 
-import com.example.login.post.PostResponseDto;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;

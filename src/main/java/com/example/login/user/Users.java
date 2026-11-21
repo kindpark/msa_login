@@ -58,11 +58,9 @@ public class Users {
     }
     public void updateUsersInfo(
             String nickname,
-            @Size(max=500)
             String profileImageUrl,
             String bio,
             String handle,
-            @Size(max=500)
             String bannerImageUrl
     ){
         this.nickname = merge(nickname, this.nickname);

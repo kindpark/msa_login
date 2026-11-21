@@ -6,6 +6,7 @@ import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -71,6 +72,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleLockingFailure(PessimisticLockingFailureException e) {
         log.warn("데드락 감지, 원인 : {}", e.getMostSpecificCause().getMessage());
         return toResponse(ErrorResponse.of(ErrorCode.LOCK_CONFLICT));
+    }
+
+    public ResponseEntity<ErrorResponse> handleMethodNotSupported(HttpRequestMethodNotSupportedException e){
+        log.warn("지원하지 않는 HTTP 메서드 요청, 요청 메서드 : {}, 허용 메서드 : {}", e.getMethod(), e.getSupportedMethods());
+        return toResponse(ErrorResponse.of(ErrorCode.METHOD_NOT_ALLOWED));
     }
 
     private ResponseEntity<ErrorResponse> toResponse(ErrorResponse body) {

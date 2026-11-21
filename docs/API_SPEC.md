@@ -1103,7 +1103,7 @@ data: {"id":42,"type":"reply.created","actorId":7,"postId":120,"createdAt":"2026
 | 위치 | `integration` 패키지 (분리 후 `integration-service`). `@ConditionalOnProperty(name = "integration.x.enabled")` 로 켜고 끈다. 꺼져 있으면 프론트에 탭을 숨긴다 |
 | X 호출 | **인터페이스 `XTimelineClient` 뒤로 숨긴다** (아래). 서비스는 어느 구현인지 모른다 |
 | 화면 | 우리 피드와 섞지 않고 **"X" 탭** 으로 따로 [결정]. 섞으면 커서(우리: 글 id, X: `pagination_token` 문자열)를 합쳐야 한다 (§6.8 2차와 같은 문제) |
-| 저장 | `external_accounts(user_id, provider, external_user_id, username, access_token_enc, refresh_token_enc, expires_at, created_at)` / unique(user_id, provider). 토큰은 **AES-GCM 등으로 암호화**, 키는 환경변수 |
+| 저장 | `external_accounts(user_id, provider, external_user_id, username, access_token_enc, refresh_token_enc, expires_at, created_at)` / unique(user_id, provider). 토큰 컬럼은 nullable (fake 행은 토큰 없음, §14.3 토글). 토큰은 **AES-GCM 등으로 암호화**, 키는 환경변수 |
 | 글 저장 | 하지 않는다. 사용자별로 **60초 캐시**(Redis) [결정] — 비용과 rate limit 보호 |
 | 실패 격리 | X 호출 타임아웃 3초. 실패하면 X 탭만 "불러오지 못했습니다", 우리 피드는 영향 없음 |
 | 탈퇴·연결 해제 | 토큰 삭제 + X 의 토큰 폐기(revoke) 호출. 탈퇴는 `user.deleted` 이벤트를 integration 쪽도 받는다 (§4.4) |
@@ -1128,10 +1128,23 @@ XTimelineClient                      ← 서비스는 이것만 안다
 
 | 메서드 | 경로 | 설명 |
 |---|---|---|
-| GET | `/integrations/x/connect` | X 인증 화면으로 리다이렉트. `state`·PKCE `code_verifier` 를 만들어 서버 세션(또는 Redis, 10분)에 둔다 |
-| GET | `/integrations/x/callback?code=&state=` | `state` 확인 → `code` 를 토큰으로 교환 → 암호화 저장 → 프론트 설정 화면으로 리다이렉트 |
-| GET | `/integrations/x` | 연결 상태 `{ "connected": true, "username": "jack" }` |
-| DELETE | `/integrations/x` | 연결 해제 → `204` |
+| POST | `/integrations/x/connect` | 연동 켜기 (토글 ON). 응답은 아래 **두 형태** 중 하나 |
+| GET | `/integrations/x/callback?code=&state=` | (official 만) `state` 확인 → `code` 를 토큰으로 교환 → 암호화 저장 → 프론트 설정 화면으로 리다이렉트 |
+| GET | `/integrations/x` | 연결 상태 `{ "connected": true, "username": "jack" }` (연결 안 됨: `{ "connected": false, "username": null }`) |
+| DELETE | `/integrations/x` | 연동 끄기 (토글 OFF) → `204` |
+
+**연동 토글** [결정, 임시] — 연동할지는 사용자가 스위치로 정한다. **"켜짐 = 연동됨"** 하나로 본다.
+
+| | fake | official |
+|---|---|---|
+| `POST /connect` 응답 | `200 { "connected": true, "username": "fake_user" }` — 바로 `external_accounts` 행 저장 (토큰 컬럼 null) | `200 { "authorizeUrl": "https://x.com/i/oauth2/authorize?..." }` — `state`·PKCE `code_verifier` 를 Redis(10분)에 두고 주소만 준다. 프론트가 그 주소로 이동, 행은 callback 에서 저장 |
+| `DELETE` | 행 삭제 | 행 삭제 + X 토큰 폐기(revoke) |
+
+- 프론트는 응답에 `authorizeUrl` 이 있으면 이동, 없으면 바로 켜짐으로 바꾼다 → fake → official 로 바꿔도 화면 코드는 그대로.
+- **멱등**: 이미 연동돼 있는데 `connect` 가 오면 에러 없이 현재 상태(`connected: true`)를 돌려준다. 연동이 없는데 `DELETE` 가 오면 그냥 `204`. 스위치 연타 대비로 `unique(user_id, provider)` 가 마지막 방어선 (동시에 두 번 오면 하나는 제약 위반 → 다시 조회해 같은 응답).
+- 프론트는 응답이 올 때까지 스위치를 잠근다.
+- "연동은 유지하고 X 탭만 숨기기"(`enabled` 컬럼)는 두지 않는다. 상태가 연동×표시 4가지로 늘어난다. 필요해지면 그때 추가.
+- 행은 fake 든 official 이든 **같은 `external_accounts` 테이블**. 메모리(Map)에 두지 않는다 (재시작하면 전부 꺼짐).
 | GET | `/integrations/x/timeline?cursor=&size=` | `{ "items": [XPost...], "nextCursor": "문자열 또는 null" }` |
 
 `XPost`: `{ "id", "text", "createdAt", "author": { "id", "username", "name", "profileImageUrl" }, "url" }` — 우리 `PostResponse` 와 모양이 다르므로 프론트는 별도 카드로 그린다. 누르면 X 원문(`url`)으로 간다.
