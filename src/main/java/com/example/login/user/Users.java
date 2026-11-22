@@ -1,5 +1,7 @@
 package com.example.login.user;
 
+import com.example.login.common.BusinessException;
+import com.example.login.common.ErrorCode;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Size;
 import lombok.*;
@@ -63,12 +65,31 @@ public class Users {
             String handle,
             String bannerImageUrl
     ){
-        this.nickname = merge(nickname, this.nickname);
+        if(nickname != null){
+            validateNickname(nickname);
+            this.nickname = nickname;
+        }
+        if(handle != null){
+            validateHandle(handle);
+            this.handle = handle;
+        }
         this.bio = merge(bio, this.bio);
-        this.handle = merge(handle, this.handle);
         this.profileImageUrl = merge(profileImageUrl, this.profileImageUrl);
         this.bannerImageUrl = merge(bannerImageUrl, this.bannerImageUrl);
         updatedAt = LocalDateTime.now();
+    }
+    private void validateNickname(String nickname){
+        if(nickname.isBlank()
+                || nickname.length() > 50){
+            throw new BusinessException(ErrorCode.INVALID_NICKNAME);
+        }
+    }
+    private void validateHandle(String handle){
+        if(handle.isBlank()
+        || handle.chars().anyMatch(Character::isWhitespace)
+        || handle.length() > 15){
+            throw new BusinessException(ErrorCode.DUPLICATE_HANDLE);
+        }
     }
     private String merge(String a, String b){
         if(a == null){

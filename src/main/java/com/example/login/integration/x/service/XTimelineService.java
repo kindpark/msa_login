@@ -80,7 +80,7 @@ public class XTimelineService {
         String normalizedCursor = (cursor==null || cursor.isBlank())
                 ? "initial"
                 : cursor;
-        String cacheKey = String.format("x:timeline:%d:%s", userId, normalizedCursor);
+        String cacheKey = String.format("x:timeline:%d:%s:%d", userId, normalizedCursor, size);
 
         // 캐시를 먼저 확인한다.
         String cacheJson = redisTemplate.opsForValue().get(cacheKey);

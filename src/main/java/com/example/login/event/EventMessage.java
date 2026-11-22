@@ -2,12 +2,16 @@ package com.example.login.event;
 
 import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 import java.util.UUID;
 
 @Getter
+@NoArgsConstructor      // ← 이게 핵심: Jackson 이 빈 객체를 먼저 만든다
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class EventMessage {
 
     private static final String TYPE_FOLLOW_CREATED = "follow.created";
@@ -16,15 +20,16 @@ public class EventMessage {
     private static final String TYPE_REPOST_CREATED = "repost.created";
     private static final String TYPE_QUOTE_CREATED = "quote.created";
     private static final String TYPE_USER_DELETED = "user.deleted";
-    private final String eventId;
-    private final String type;
-    private final Instant occurredAt;
-    private final Long actorId;
-    private final Long recipientId;
-    private final Long postId;
-    private final Long parentId;
 
-    private EventMessage(
+    private String eventId;
+    private String type;
+    private Instant occurredAt;
+    private Long actorId;
+    private Long recipientId;
+    private Long postId;
+    private Long parentId;
+
+    public EventMessage(
             String eventId,
             String type,
             Instant occurredAt,

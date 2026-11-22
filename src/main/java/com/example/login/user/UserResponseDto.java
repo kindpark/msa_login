@@ -1,5 +1,6 @@
 package com.example.login.user;
 
+import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
@@ -11,6 +12,7 @@ import lombok.NoArgsConstructor;
 @Builder
 public class UserResponseDto {
     private Long id;
+    @Pattern(regexp = "^\\S+$", message = "공백은 포함될 수 없습니다.")
     private String nickname;
     private String profileImageUrl;
     private String bio;
