@@ -434,6 +434,7 @@ X 방식을 따른다. **답글도 게시글**이며, `parentId` 로 관계를 �
 | liked | 요청한 사용자가 좋아요 했는지. 🚧 아직 응답에 없음 (§10) |
 | repostCount, reposted | 📝 재게시 수, 요청한 사용자가 재게시했는지. `liked` 와 같은 방식(left join + projection)으로 채운다 (§6.8) |
 | quoteId, quotedPost, quoteCount | 📝 인용 재게시 (§6.10) |
+| imageUrls | 📝 이미지 주소 목록 (0~4장, 올린 순서). `imageUrl` 은 첫 장과 같다 (§6.11) |
 
 `rootId` 는 서버 내부용이라 응답에 넣지 않는다.
 
@@ -446,7 +447,8 @@ X 방식을 따른다. **답글도 게시글**이며, `parentId` 로 관계를 �
 | 필드 | 규칙 |
 |---|---|
 | content | 필수(공백 불가) |
-| imageUrl | 선택 |
+| imageUrl | 선택. 📝 `imageUrls` 가 오면 무시한다 |
+| imageUrls | 📝 선택. 최대 4개, 각 255자 이하 (§6.11) |
 
 응답 `200` `PostResponse` (🚧 `201` 권장)
 
@@ -573,6 +575,27 @@ X 방식을 따른다. **답글도 게시글**이며, `parentId` 로 관계를 �
 - 요청: §6.2 와 같다 `{ "content", "imageUrl" }`. `{postId}` 가 인용할 글이다.
 - 서버 처리: 인용할 글 존재 확인(없거나 삭제됐으면 404) → `quoteId = postId`, `parentId = null` → 인용할 글 `quoteCount + 1` → 저장. **답글 작성(§6.5)과 같은 흐름**이다.
 - 응답 `200` `PostResponse` (새 글, `quoteId = postId`). 에러: `404 POST_NOT_FOUND`, `400 VALIDATION_ERROR`
+
+### 6.11 이미지 여러 장 📝 (2026-11-23)
+
+한 글에 이미지를 **최대 4장**(X 와 같음) 붙인다. 업로드 API(§6.9)는 그대로 한 번에 한 장이고, 프론트가 장마다 따로 올려 받은 주소들을 `imageUrls` 로 보낸다.
+
+| 항목 | 내용 |
+|---|---|
+| 요청 (§6.2·§6.3·§6.10) | `{ "content": "본문", "imageUrls": ["/api/v1/images/a.png", "https://..."] }` |
+| 규칙 | 0~4개, 각 255자 이하, http(s) 또는 `/api/v1/images/...`. 5개 이상이면 `400 VALIDATION_ERROR` |
+| 응답 (§6.1) | `imageUrls` (항상 배열, 없으면 `[]`) + `imageUrl` (= 첫 장, 없으면 `null`) |
+| 수정 | `imageUrls` 를 보내면 목록 전체를 바꾼다 (부분 수정 없음) |
+
+**저장**
+- 새 테이블 `post_images(post_id, sort_order, url)`, PK `(post_id, sort_order)`. JPA 는 `@ElementCollection` + `@OrderColumn(name = "sort_order")` 로 간단히 만들 수 있다.
+- `posts.image_url` 은 **첫 장을 그대로 복사해 둔다** (대표 이미지). 미디어 탭 쿼리(`image_url IS NOT NULL`, §8)와 인용 미리보기가 바뀌지 않는다. 두 값은 엔티티의 한 메서드에서만 같이 바꿔서 어긋나지 않게 한다.
+- 목록 API 는 글마다 `post_images` 를 따로 읽으면 N+1 이 된다. `@BatchSize(size = 100)` 또는 `hibernate.default_batch_fetch_size=100` 으로 한 번에 묶어 읽는다.
+
+**호환 (전환 기간)**
+- 프론트는 `imageUrls` 와 `imageUrl`(첫 장)을 **둘 다** 보낸다. 백엔드가 아직 `imageUrls` 를 모르면 첫 장만 저장되고 깨지지는 않는다.
+- 프론트는 응답에 `imageUrls` 가 없으면 `imageUrl` 하나짜리 목록으로 본다.
+- 기존 글: `insert into post_images (post_id, sort_order, url) select id, 0, image_url from posts where image_url is not null;` 로 한 번 옮긴다.
 
 **PostResponse 추가 필드** (§6.1)
 
@@ -945,6 +968,7 @@ X 와 Threads 를 섞는다.
 | posts | `quote_id BIGINT NULL`, `quote_count INT NOT NULL DEFAULT 0`, 인덱스 `(quote_id, id)` | 인용 재게시 (§6.10) |
 | users | `handle VARCHAR(15) UNIQUE`, `banner_image_url VARCHAR(500)` | 프로필 |
 | post_likes 인덱스 | `(post_id, id)` (지금의 이름 잘못된 인덱스를 대체) | 좋아요 누른 사람 목록 |
+| post_images | post_id, sort_order, url(255) / PK (post_id, sort_order) | 이미지 여러 장 (§6.11). `posts.image_url` 은 첫 장 복사본 |
 
 **마이그레이션 주의**: `ddl-auto=update` 는 행이 있는 테이블에 NOT NULL 컬럼(특히 `@CreationTimestamp`)을 추가하지 못한다. NULL 허용으로 직접 추가 → 값 채우기 순서로 진행한다.
 

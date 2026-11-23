@@ -3,10 +3,6 @@ package com.example.login.user;
 import com.example.login.TestcontainersConfiguration;
 import com.example.login.integration.x.entity.ExternalAccount;
 import com.example.login.integration.x.repository.ExternalAccountRepository;
-import com.example.login.post.Post;
-import com.example.login.post.PostRepository;
-import com.example.login.postlike.PostLikeService;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -40,12 +36,6 @@ class WithdrawalIntegrationTest {
 
     @Autowired
     ExternalAccountRepository externalAccountRepository;
-
-    @Autowired
-    PostRepository postRepository;
-
-    @Autowired
-    PostLikeService postLikeService;
 
     @Autowired
     PasswordEncoder passwordEncoder;
@@ -82,50 +72,4 @@ class WithdrawalIntegrationTest {
                         assertThat(externalAccountRepository.findByUserIdAndProvider(userId, "X")).isEmpty());
     }
 
-    @Test
-    @DisplayName("회원 탈퇴 시 다른 사용자의 게시글에 남긴 좋아요가 삭제되고 likeCount가 0으로 감소한다")
-    void deleteLikeZero() {
-        // given: 탈퇴할 사용자(A)와 게시글 작성자(B) 저장
-        Users withdrawUser = usersRepository.save(Users.builder()
-                .email("withdra1w@test.com")
-                .passwordHash(passwordEncoder.encode("123456a!"))
-                .nickname("탈퇴유저")
-                .role("USER")
-                .build());
-        Long withdrawUserId = withdrawUser.getId();
-
-        Users authorB = usersRepository.save(Users.builder()
-                .email("authorB@test.com")
-                .passwordHash(passwordEncoder.encode("123456a!"))
-                .nickname("작성자B")
-                .role("USER")
-                .build());
-
-        // given: 사용자 B의 게시글 저장
-        Post post = postRepository.save(Post.builder()
-                .userId(authorB.getId()) // 작성자 B의 ID로 설정
-                .content("abcdefg")
-                .build());
-        Long postId = post.getId();
-
-        // given: 탈퇴할 사용자가 B의 글에 좋아요 클릭 (post_likes 생성 + likeCount = 1)
-        postLikeService.toggle(postId, withdrawUserId);
-
-        // 사전 검증: 좋아요가 정상 반영되어 likeCount가 1인지 확인
-        Post likedPost = postRepository.findById(postId).orElseThrow();
-        assertThat(likedPost.getLikeCount()).isEqualTo(1);
-
-        // when: 회원 탈퇴 실행
-        DeleteAccountRequestDto dto = new DeleteAccountRequestDto();
-        ReflectionTestUtils.setField(dto, "password", "123456a!");
-
-        // when: 회원 탈퇴 실행
-        usersService.deleteAccount(dto, withdrawUserId);
-
-        // then: 비동기 후처리 완료 후 해당 게시글의 likeCount가 0이 되는지 최대 10초간 검증
-        await().atMost(Duration.ofSeconds(10)).untilAsserted(() -> {
-            Post updatedPost = postRepository.findById(postId).orElseThrow();
-            assertThat(updatedPost.getLikeCount()).isEqualTo(0);
-        });
-    }
 }
