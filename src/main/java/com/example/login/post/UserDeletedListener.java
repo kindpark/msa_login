@@ -1,9 +1,11 @@
 package com.example.login.post;
 
+import com.example.login.config.RabbitMQConfig;
 import com.example.login.event.EventMessage;
 import com.example.login.postlike.PostLikeRepository;
 import com.example.login.repost.RepostRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,9 +23,9 @@ public class UserDeletedListener {
 
 
     @Transactional(propagation= Propagation.REQUIRES_NEW)
-    @TransactionalEventListener(
-            phase = TransactionPhase.AFTER_COMMIT,
-            condition="#eventMessage.type == 'user.deleted'"
+    @RabbitListener(
+            queues = RabbitMQConfig.USER_DELETED_QUEUE
+
     )
     public void handleUserDeleted(EventMessage eventMessage){
         postRepository.decreaseLikeCountOfPostsLikedBy(eventMessage.getActorId());

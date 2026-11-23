@@ -29,4 +29,11 @@ public class UserPostController {
                 size
                 ));
     }
+
+    @GetMapping("/{id}/posts/count")
+    public ResponseEntity<Long> getUserPostCount(
+            @PathVariable Long id
+    ){
+        return ResponseEntity.ok(postService.getPostCount(id));
+    }
 }

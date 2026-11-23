@@ -1,8 +1,5 @@
 package com.example.login.profile;
 
-import com.example.login.follow.Follow;
-import com.example.login.follow.FollowRepository;
-import com.example.login.post.PostRepository;
 import com.example.login.user.Users;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -10,7 +7,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.Objects;
 
 @Getter
 @AllArgsConstructor
@@ -26,7 +22,6 @@ public class ProfileResponseDto {
     private LocalDateTime createdAt;
     private Long followerCount;
     private Long followingCount;
-    private Long postCount;
     private Boolean me;
     private Boolean followedByMe;
     // MSA로 나누면 PostCount를 이벤트로 받도록 한다.
@@ -35,7 +30,6 @@ public class ProfileResponseDto {
             Long viewerId,
             Long followerCount,
             Long followingCount,
-            Long postCount,
             Boolean me,
             Boolean followedByMe){
         return ProfileResponseDto.builder()
@@ -49,7 +43,6 @@ public class ProfileResponseDto {
                 .followerCount(followerCount)
                 .followingCount(followingCount)
                 //잘 몰랐던 부분들. me와 followedByMe를 왜 이렇게 받아야 하는가?
-                .postCount(postCount)
                 .me(me)
                 .followedByMe(followedByMe)
                 .build();

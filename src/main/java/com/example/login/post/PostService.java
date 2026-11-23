@@ -4,8 +4,6 @@ import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
 import com.example.login.event.EventMessage;
 import com.example.login.feed.FeedCache;
-import com.example.login.postlike.PostLikeRepository;
-import com.example.login.repost.RepostRepository;
 import com.example.login.repost.RepostService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -21,6 +19,7 @@ public class PostService {
     private final RepostService repostService;
     private final FeedCache feedCache;
     private final ApplicationEventPublisher eventPublisher;
+
     // 내꺼 조회
     @Transactional(readOnly = true)
     public List<PostResponseDto> getMyPosts(Long userId){
@@ -205,5 +204,9 @@ public class PostService {
                 .toList();
         // 3. Entity 리스트를 PostPageResponseDto로 변환하여 반환
         return new PostPageResponseDto(posts, nextCursor);
+    }
+    @Transactional
+    public Long getPostCount(Long userId) {
+        return postRepository.countByUserIdAndParentIdIsNull(userId);
     }
 }

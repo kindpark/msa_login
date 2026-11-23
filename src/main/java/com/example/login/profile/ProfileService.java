@@ -2,11 +2,7 @@ package com.example.login.profile;
 
 import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
-import com.example.login.feed.FeedPageResponseDto;
 import com.example.login.follow.*;
-import com.example.login.post.PostRepository;
-import com.example.login.post.PostResponseDto;
-import com.example.login.user.UserResponseDto;
 import com.example.login.user.Users;
 import com.example.login.user.UsersRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +24,6 @@ public class ProfileService {
 
     private final UsersRepository usersRepository;
     private final FollowRepository followRepository;
-    private final PostRepository postRepository;
 
 
     // 프로필 헤더들을 반환하기 위한것
@@ -42,7 +37,6 @@ public class ProfileService {
                 viewerId,
                 getFollowerCount(user),
                 getFollowingCount(user),
-                getPostCount(user),
                 getMe(user, viewerId),
                 getFollowedByMe(user, viewerId)
         );
@@ -161,10 +155,6 @@ public class ProfileService {
 
     private Long getFollowerCount(Users user){
         return followRepository.countByFollowingId(user.getId());
-    }
-
-    private Long getPostCount(Users user) {
-        return postRepository.countByUserIdAndParentIdIsNull(user.getId());
     }
 
     private Boolean getMe(Users user, Long viewerId) {

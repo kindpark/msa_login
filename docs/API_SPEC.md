@@ -108,7 +108,7 @@
 | 위치 | 넘는 방향 | 분리 후 |
 |---|---|---|
 | `UsersService.deleteAccount` 가 Post·PostLike·Repost 리포지토리 사용 | user → post | `user.deleted` 이벤트로 넘긴다 (§4.4) |
-| `ProfileService.getPostCount` 가 `postRepository.countByUserIdAndParentIdIsNull` 사용 | user → post | post-feed 의 "사용자별 원글 수" API 를 HTTP 로 묻거나(`FollowReader` 의 반대 방향 인터페이스), 프론트가 따로 받는다 |
+| ~~`ProfileService.getPostCount` 가 `postRepository.countByUserIdAndParentIdIsNull` 사용~~ | user → post | ✅ 2026-11-23 정리: 헤더에서 빼고 post-feed 의 `GET /users/{id}/posts/count` 를 프론트가 따로 받는다 (§8.3) |
 | 피드가 팔로우 목록 사용 | post → user | `FollowReader` (§7.4) |
 
 ---
@@ -764,6 +764,7 @@ X 와 Threads 를 섞는다.
 | GET | `/users/{userId}/profile` | 프로필 헤더 |
 | PATCH | `/users/me` | 프로필 수정 |
 | GET | `/users/{userId}/posts?tab=posts\|replies\|reposts\|media&cursor=&size=` | 탭 목록 (`{ posts, nextCursor }`) |
+| GET | `/users/{userId}/posts/count` | 원글 수 `{ "count": 57 }` (답글 제외, `parent_id IS NULL`). **post-feed** 가 주인 |
 | GET | `/users/{userId}/followers?cursor=&size=` | 팔로워 (공개) |
 | GET | `/users/me/followings?cursor=&size=` | 팔로잉 (본인만) |
 
@@ -786,10 +787,13 @@ X 와 Threads 를 섞는다.
 {
   "id": 1, "handle": "tester", "nickname": "테스터", "bio": "소개",
   "profileImageUrl": null, "bannerImageUrl": null, "createdAt": "2026-11-01T10:00:00",
-  "followerCount": 12, "followingCount": 30, "postCount": 57,
+  "followerCount": 12, "followingCount": 30,
   "me": false, "followedByMe": true
 }
 ```
+
+- **글 수는 헤더에 없다** (2026-11-23 결정). 헤더는 users·follows(user-service) 데이터이고 글 수만 posts(post-feed) 데이터라, 프론트가 `GET /users/{userId}/posts/count` 를 따로 불러 합친다. user-service 가 post-feed 를 HTTP 로 부르게 하면(`FollowReader` 의 반대 방향) 두 서비스가 **서로를** 호출하게 되어 피했다.
+- 분리 후 게이트웨이는 `/users/{id}/profile`·`/followers`·`/followings` 는 user-service 로, `/users/{id}/posts/**` 는 post-feed 로 보낸다.
 
 프로필 수정 요청 (보낸 필드만 바꾼다)
 
@@ -906,7 +910,7 @@ X 와 Threads 를 섞는다.
 
 | 항목 | 내용 |
 |---|---|
-| 테이블 | `outbox_events(id, event_id unique, type, payload JSON, status PENDING/SENT/FAILED, attempts, created_at, sent_at)` / 인덱스 `(status, id)` |
+| 테이블 | `outbox(id, event_id unique, type, payload JSON, status varchar(20) pending/sent/failed, attempts, created_at, sent_at)` / 인덱스 `(status, id)`. 처음 이름 `outbox_events` 는 2026-11-23 에 `outbox` 로 바꿨다 (`ddl-auto=update` 는 이름을 바꾸지 않고 새 테이블을 만드므로 옛 테이블은 직접 지운다) |
 | 쓰는 곳 | 지금 `eventPublisher.publishEvent(...)` 하는 곳을 그대로 두고, 리스너를 `BEFORE_COMMIT`(같은 트랜잭션)에서 outbox insert 하도록 바꾼다. 서비스 코드는 거의 안 바뀐다 |
 | 릴레이 | 서버가 여러 대면 같은 행을 두 번 보내지 않게 `SELECT ... FOR UPDATE SKIP LOCKED`. 한 대일 때는 단순 조회로 시작 |
 | 포기 | `attempts` 가 N(예: 10) 넘으면 `FAILED` 로 두고 로그 → 사람이 확인 (무한 재시도 금지, §14.5 와 같은 원칙) |
@@ -1132,6 +1136,7 @@ XTimelineClient                      ← 서비스는 이것만 안다
 | GET | `/integrations/x/callback?code=&state=` | (official 만) `state` 확인 → `code` 를 토큰으로 교환 → 암호화 저장 → 프론트 설정 화면으로 리다이렉트 |
 | GET | `/integrations/x` | 연결 상태 `{ "connected": true, "username": "jack" }` (연결 안 됨: `{ "connected": false, "username": null }`) |
 | DELETE | `/integrations/x` | 연동 끄기 (토글 OFF) → `204` |
+| GET | `/integrations/x/timeline?cursor=&size=` | `{ "items": [XPost...], "nextCursor": "문자열 또는 null" }` |
 
 **연동 토글** [결정, 임시] — 연동할지는 사용자가 스위치로 정한다. **"켜짐 = 연동됨"** 하나로 본다.
 
@@ -1145,7 +1150,6 @@ XTimelineClient                      ← 서비스는 이것만 안다
 - 프론트는 응답이 올 때까지 스위치를 잠근다.
 - "연동은 유지하고 X 탭만 숨기기"(`enabled` 컬럼)는 두지 않는다. 상태가 연동×표시 4가지로 늘어난다. 필요해지면 그때 추가.
 - 행은 fake 든 official 이든 **같은 `external_accounts` 테이블**. 메모리(Map)에 두지 않는다 (재시작하면 전부 꺼짐).
-| GET | `/integrations/x/timeline?cursor=&size=` | `{ "items": [XPost...], "nextCursor": "문자열 또는 null" }` |
 
 `XPost`: `{ "id", "text", "createdAt", "author": { "id", "username", "name", "profileImageUrl" }, "url" }` — 우리 `PostResponse` 와 모양이 다르므로 프론트는 별도 카드로 그린다. 누르면 X 원문(`url`)으로 간다.
 

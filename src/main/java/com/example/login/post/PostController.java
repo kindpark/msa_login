@@ -1,6 +1,5 @@
 package com.example.login.post;
 
-import com.example.login.user.UserResponseDto;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
