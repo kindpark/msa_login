@@ -22,7 +22,7 @@ import tools.jackson.databind.ObjectMapper;
 @Slf4j
 @Component
 @AllArgsConstructor
-public class OutboxEventRecoder {
+public class OutboxEventRecorder {
     // EventMessage 객체 ↔ JSON 문자열 변환기. 스프링이 설정해 둔 것을 주입받아야
     // 날짜(occurredAt) 형식 등이 예전에 RabbitMQ 로 직접 보내던 것과 똑같이 나온다
     private final ObjectMapper objectMapper;
@@ -56,6 +56,6 @@ public class OutboxEventRecoder {
             // 업무 트랜잭션 안에서 insert (status = pending)
             outboxRepository.save(save);
             // 참고: 이제 여기서는 "발행"이 아니라 "outbox 저장"만 한다. 실제 발행은 OutboxRelayService
-            log.info("rabbitmq 이벤트 발행 성공: type={}", event.getType());
+            log.info("OutBox 저장: type={}", event.getType());
     }
 }

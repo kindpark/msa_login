@@ -56,6 +56,7 @@ public class SecurityConfig {
                                         "/api/v1/users/find-id",
                                         "/api/v1/users/password-reset",
                                         "/api/v1/users/password-reset/confirm").permitAll()
+                                .requestMatchers("/internal/**").permitAll()
                                 .requestMatchers("/error").permitAll()
                         // 그 외 모든 요청은 인증 필요
                         .anyRequest().authenticated()

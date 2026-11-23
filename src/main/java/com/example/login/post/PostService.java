@@ -206,7 +206,12 @@ public class PostService {
         return new PostPageResponseDto(posts, nextCursor);
     }
     @Transactional
-    public Long getPostCount(Long userId) {
-        return postRepository.countByUserIdAndParentIdIsNull(userId);
+    public PostCountDto getPostCount(Long userId) {
+
+        Long count =  postRepository.countByUserId(userId);
+
+        return PostCountDto.builder()
+                .count(count)
+                .build();
     }
 }

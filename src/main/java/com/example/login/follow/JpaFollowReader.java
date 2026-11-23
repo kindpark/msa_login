@@ -2,6 +2,7 @@ package com.example.login.follow;
 
 import com.example.login.feed.FollowReader;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +16,8 @@ import java.util.List;
  */
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(name="feed.follow-reader",
+        havingValue = "jpa", matchIfMissing = true)
 public class JpaFollowReader implements FollowReader {
 
     private final FollowRepository followRepository;

@@ -46,9 +46,10 @@ public enum ErrorCode {
     X_NOT_CONNECTED(HttpStatus.CONFLICT, "X_NOT_CONNECTED", "X 계정이 연결되어 있지 않습니다."),
     X_TOKEN_EXPIRED(HttpStatus.UNAUTHORIZED, "X_TOKEN_EXPIRED", "X 인증이 만료되었습니다. 다시 연결해 주세요."),
     X_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "X_UNAVAILABLE", "X 서비스를 일시적으로 이용할 수 없습니다."),
-    X_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "X_RATE_LIMITED", "오늘 X 호출 한도를 초과했습니다.");
+    X_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "X_RATE_LIMITED", "오늘 X 호출 한도를 초과했습니다."),
 
-
+    // 503
+    UPSTREAM_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "UPSTREAM_UNAVAILABLE", "연결된 서비스가 일시적으로 응답할수 없는 상태입니다.");
     private final HttpStatus httpStatus;
     private final String code;
     private final String message;

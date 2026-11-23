@@ -7,10 +7,8 @@ import com.example.login.repost.RepostRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.event.TransactionPhase;
-import org.springframework.transaction.event.TransactionalEventListener;
+
 
 import java.util.List;
 
@@ -22,7 +20,7 @@ public class UserDeletedListener {
     private final RepostRepository repostRepository;
 
 
-    @Transactional(propagation= Propagation.REQUIRES_NEW)
+    @Transactional
     @RabbitListener(
             queues = RabbitMQConfig.USER_DELETED_QUEUE
 

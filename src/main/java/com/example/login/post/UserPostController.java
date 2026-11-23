@@ -31,7 +31,7 @@ public class UserPostController {
     }
 
     @GetMapping("/{id}/posts/count")
-    public ResponseEntity<Long> getUserPostCount(
+    public ResponseEntity<PostCountDto> getUserPostCount(
             @PathVariable Long id
     ){
         return ResponseEntity.ok(postService.getPostCount(id));

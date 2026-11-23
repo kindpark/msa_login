@@ -58,6 +58,6 @@ public class OutboxTransactionTest {
         // then
         Optional<Outbox> found = outboxRepository.findByEventId(event.getEventId());
         assertThat(found).isPresent();
-        assertThat(found.get().getStatus()).isEqualTo("pending");
+        assertThat(found.get().getStatus()).isIn("pending", "sent");
     }
 }

@@ -108,7 +108,7 @@
 | 위치 | 넘는 방향 | 분리 후 |
 |---|---|---|
 | `UsersService.deleteAccount` 가 Post·PostLike·Repost 리포지토리 사용 | user → post | `user.deleted` 이벤트로 넘긴다 (§4.4) |
-| ~~`ProfileService.getPostCount` 가 `postRepository.countByUserIdAndParentIdIsNull` 사용~~ | user → post | ✅ 2026-11-23 정리: 헤더에서 빼고 post-feed 의 `GET /users/{id}/posts/count` 를 프론트가 따로 받는다 (§8.3) |
+| ~~`ProfileService.getPostCount` 가 `postRepository` 의 글 수 쿼리 사용~~ | user → post | ✅ 2026-11-23 정리: 헤더에서 빼고 post-feed 의 `GET /users/{id}/posts/count` 를 프론트가 따로 받는다 (§8.3) |
 | 피드가 팔로우 목록 사용 | post → user | `FollowReader` (§7.4) |
 
 ---
@@ -764,7 +764,7 @@ X 와 Threads 를 섞는다.
 | GET | `/users/{userId}/profile` | 프로필 헤더 |
 | PATCH | `/users/me` | 프로필 수정 |
 | GET | `/users/{userId}/posts?tab=posts\|replies\|reposts\|media&cursor=&size=` | 탭 목록 (`{ posts, nextCursor }`) |
-| GET | `/users/{userId}/posts/count` | 원글 수 `{ "count": 57 }` (답글 제외, `parent_id IS NULL`). **post-feed** 가 주인 |
+| GET | `/users/{userId}/posts/count` | 글 수 `{ "count": 57 }` (원글 + 답글 + 인용. 재게시는 posts 행이 아니라 제외, 삭제된 글 제외). **post-feed** 가 주인 |
 | GET | `/users/{userId}/followers?cursor=&size=` | 팔로워 (공개) |
 | GET | `/users/me/followings?cursor=&size=` | 팔로잉 (본인만) |
 

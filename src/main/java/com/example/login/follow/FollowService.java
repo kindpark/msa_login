@@ -51,4 +51,9 @@ public class FollowService {
                     return true;
                 });
     }
+
+    @Transactional(readOnly = true)
+    public List<Long> getFollows(Long id){
+        return followRepository.findFollowingIds(id);
+    }
 }

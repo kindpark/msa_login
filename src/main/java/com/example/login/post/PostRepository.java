@@ -18,9 +18,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     Long countByUserId(Long userId);
 
-    // 프로필 "게시물 N개": 답글(parentId 있음)은 빼고 원글만 센다. 삭제된 글은 @SQLRestriction 이 걸러낸다.
-    Long countByUserIdAndParentIdIsNull(Long userId);
-
     List<Post> findAllById(Iterable<Long> ids);
     //최근 포스트 한 사람들중 포스트아이디,
 
