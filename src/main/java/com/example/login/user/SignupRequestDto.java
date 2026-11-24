@@ -2,6 +2,7 @@ package com.example.login.user;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,4 +20,7 @@ public class SignupRequestDto {
     @NotBlank
     @Size(max = 50)
     private String nickname;
+    @NotBlank
+    @Pattern(regexp = "^[a-z][a-z0-9_]{3,14}$")
+    private String handle;
 }

@@ -29,12 +29,16 @@ public class UsersService {
         if(usersRepository.existsByEmail(request.getEmail())){
             throw new BusinessException(ErrorCode.DUPLICATE_EMAIL);
         }
+        if(usersRepository.existsByHandle(request.getHandle())){
+            throw new BusinessException(ErrorCode.DUPLICATE_HANDLE);
+        }
         // 위 확인과 저장 사이에 같은 이메일로 동시에 가입하면 DB 의 unique 제약이 막고,
         // GlobalExceptionHandler 가 409 로 응답한다.
         Users user = Users.builder()
                 .email(request.getEmail())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .nickname(request.getNickname())
+                .handle(request.getHandle())
                 .role("USER")
                 .build();
 

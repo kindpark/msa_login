@@ -18,6 +18,7 @@ public enum ErrorCode {
     SELF_FOLLOW(HttpStatus.BAD_REQUEST, "SELF_FOLLOW", "자기 자신을 팔로우할 수 없습니다."),
     TOO_MANY_IDS(HttpStatus.BAD_REQUEST, "TOO_MANY_IDS", "한 번에 최대 100명까지 조회할 수 있습니다."),
     INVALID_NICKNAME(HttpStatus.BAD_REQUEST, "INVALID_NICKNAME", "닉네임은 공백 없이 1~50자여야 합니다."),
+    INVALID_HANDLE(HttpStatus.BAD_REQUEST, "INVALID_HANDLE", "핸들은 첫자엔 영어, 이외에는 한글, 영어, _ 를 조합하여 최소 3자에서 최대 14자까지 사용가능합니다."),
 
     // 401 UNAUTHORIZED
     INVALID_CREDENTIALS(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "이메일 또는 비밀번호가 일치하지 않습니다."),

@@ -3,7 +3,7 @@ package com.example.login.user;
 import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Size;
+import java.util.regex.Pattern;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.SQLRestriction;
@@ -53,6 +53,8 @@ public class Users {
     @Column(updatable = true)
     private LocalDateTime deletedAt;
 
+    private static final String regexp = "^[a-z][a-z0-9_]{3,14}$";
+    private static final Pattern pattern = Pattern.compile(regexp);
     // 엔티티는 외부 기술(PasswordEncoder 등)을 몰라야 함.
     // 비즈니스 메서드는 순수한 값만 인자로 받아서 변경함.
     public void changePassword(String newEncodedPassword) {
@@ -85,11 +87,11 @@ public class Users {
         }
     }
     private void validateHandle(String handle){
-        if(handle.isBlank()
-        || handle.chars().anyMatch(Character::isWhitespace)
-        || handle.length() > 15){
-            throw new BusinessException(ErrorCode.DUPLICATE_HANDLE);
+        if(!pattern.matcher(handle).matches()){
+            throw new BusinessException(ErrorCode.INVALID_HANDLE);
         }
+
+
     }
     private String merge(String a, String b){
         if(a == null){
