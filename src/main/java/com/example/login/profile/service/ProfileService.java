@@ -1,10 +1,15 @@
-package com.example.login.profile;
+package com.example.login.profile.service;
 
 import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
-import com.example.login.follow.*;
-import com.example.login.user.Users;
-import com.example.login.user.UsersRepository;
+import com.example.login.follow.dto.FollowPageResponseDto;
+import com.example.login.follow.dto.FollowUserResponseDto;
+import com.example.login.follow.entity.Follow;
+import com.example.login.follow.repository.FollowRepository;
+import com.example.login.profile.dto.ProfileRequestDto;
+import com.example.login.profile.dto.ProfileResponseDto;
+import com.example.login.user.entity.Users;
+import com.example.login.user.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.data.domain.Limit;

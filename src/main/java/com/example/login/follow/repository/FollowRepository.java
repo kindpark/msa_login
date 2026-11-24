@@ -1,5 +1,6 @@
-package com.example.login.follow;
+package com.example.login.follow.repository;
 
+import com.example.login.follow.entity.Follow;
 import org.springframework.data.domain.Limit;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;

@@ -1,6 +1,6 @@
-package com.example.login.follow;
+package com.example.login.follow.dto;
 
-import com.example.login.user.Users;
+import com.example.login.user.entity.Users;
 import lombok.Builder;
 import lombok.Getter;
 

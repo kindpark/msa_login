@@ -1,4 +1,4 @@
-package com.example.login.follow;
+package com.example.login.follow.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

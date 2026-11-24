@@ -1,10 +1,16 @@
-package com.example.login.user;
+package com.example.login.user.service;
 
 import com.example.login.auth.AuthRepository;
 import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
 import com.example.login.event.EventMessage;
-import com.example.login.follow.FollowRepository;
+import com.example.login.follow.repository.FollowRepository;
+import com.example.login.user.dto.DeleteAccountRequestDto;
+import com.example.login.user.dto.SignupRequestDto;
+import com.example.login.user.dto.UserMeResponseDto;
+import com.example.login.user.dto.UserResponseDto;
+import com.example.login.user.entity.Users;
+import com.example.login.user.repository.UsersRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -12,7 +18,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor

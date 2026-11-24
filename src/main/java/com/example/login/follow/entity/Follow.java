@@ -1,4 +1,4 @@
-package com.example.login.follow;
+package com.example.login.follow.entity;
 
 
 import jakarta.persistence.*;

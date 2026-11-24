@@ -5,7 +5,7 @@ import com.example.login.auth.find.FindIdResponseDto;
 import com.example.login.auth.update.UpdatePasswordRequestDto;
 import com.example.login.security.JwtUtil;
 import com.example.login.security.TokenCookieProvider;
-import com.example.login.user.Users;
+import com.example.login.user.entity.Users;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

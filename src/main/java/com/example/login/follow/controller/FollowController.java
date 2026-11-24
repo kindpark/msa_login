@@ -1,5 +1,7 @@
-package com.example.login.follow;
+package com.example.login.follow.controller;
 
+import com.example.login.follow.dto.FollowResponseDto;
+import com.example.login.follow.service.FollowService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;

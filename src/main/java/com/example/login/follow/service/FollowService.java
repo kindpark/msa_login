@@ -1,9 +1,11 @@
-package com.example.login.follow;
+package com.example.login.follow.service;
 
 import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
 import com.example.login.event.EventMessage;
-import com.example.login.user.UsersService;
+import com.example.login.follow.entity.Follow;
+import com.example.login.follow.repository.FollowRepository;
+import com.example.login.user.service.UsersService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;

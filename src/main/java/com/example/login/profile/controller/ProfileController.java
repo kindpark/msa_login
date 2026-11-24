@@ -1,14 +1,14 @@
-package com.example.login.profile;
+package com.example.login.profile.controller;
 
-import com.example.login.follow.FollowPageResponseDto;
-import com.example.login.user.UserResponseDto;
+import com.example.login.follow.dto.FollowPageResponseDto;
+import com.example.login.profile.dto.ProfileRequestDto;
+import com.example.login.profile.dto.ProfileResponseDto;
+import com.example.login.profile.service.ProfileService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1")

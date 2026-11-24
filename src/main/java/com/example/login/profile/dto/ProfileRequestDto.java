@@ -1,4 +1,4 @@
-package com.example.login.profile;
+package com.example.login.profile.dto;
 
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;

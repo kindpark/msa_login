@@ -1,4 +1,4 @@
-package com.example.login.user;
+package com.example.login.user.entity;
 
 import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;

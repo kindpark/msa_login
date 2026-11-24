@@ -1,26 +1,22 @@
-package com.example.login.user;
+package com.example.login.user.controller;
 
 
-import com.example.login.auth.AuthService;
-import com.example.login.common.BusinessException;
-import com.example.login.common.ErrorCode;
 import com.example.login.common.GlobalExceptionHandler;
 import com.example.login.security.TokenCookieProvider;
-import com.example.login.user.SignupRequestDto;
-import com.example.login.security.JwtUtil;
+import com.example.login.user.service.UsersService;
+import com.example.login.user.dto.DeleteAccountRequestDto;
+import com.example.login.user.dto.SignupRequestDto;
+import com.example.login.user.dto.UserMeResponseDto;
+import com.example.login.user.dto.UserResponseDto;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-
-import static org.springframework.http.ResponseEntity.noContent;
 
 @RestController
 @RequestMapping("/api/v1/users")

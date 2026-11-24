@@ -1103,7 +1103,7 @@ data: {"id":42,"type":"reply.created","actorId":7,"postId":120,"createdAt":"2026
 
 **방식: X 공식 API + 개발용 Fake** (2026-11-21 결정). 비공식 서비스를 쓰지 않는 이유는 §14.6.
 
-### 14.1 X API 조건 (2026-11-21 확인. 바뀌므로 구현 직전에 다시 확인)
+### 14.1 X API 조건 (2026-11-24 재확인)
 
 | 항목 | 내용 |
 |---|---|
@@ -1183,16 +1183,20 @@ XTimelineClient                      ← 서비스는 이것만 안다
 
 ### 14.4 보안 체크
 
-- `state` 로 CSRF 를 막고, PKCE 로 code 탈취를 막는다. `redirect_uri` 는 X 개발자 콘솔에 등록한 값과 **정확히** 같아야 한다 (로컬: `http://localhost:5173/api/v1/integrations/x/callback` 등. 배포 후 HTTPS 주소 추가).
+- `state` 로 CSRF 를 막고, PKCE 로 code 탈취를 막는다. `redirect_uri` 는 X 개발자 콘솔에 등록한 값과 **정확히** 같아야 한다 (로컬: `http://127.0.0.1:5173/api/v1/integrations/x/callback`. X 문서가 로컬은 `localhost` 말고 `127.0.0.1` 을 쓰라고 한다. 쿠키는 둘을 다른 사이트로 보므로 접속 주소도 `127.0.0.1` 로 통일. 배포 후 HTTPS 주소 추가).
+- **callback 은 로그인 쿠키 없이 온다** (2026-11-24): `user_token` 이 `SameSite=Strict` 라 X 에서 돌아오는 이동에는 붙지 않는다. 그래서 callback 은 permitAll, 사용자는 Redis 의 `state` → `{ userId, codeVerifier }` 로 찾는다. `state` 는 한 번 쓰면 바로 지운다(GETDEL).
+- **시작한 브라우저 확인**: state 만으로는 공격자가 자기 callback 주소를 피해자에게 열게 할 수 있다. connect 때 `x_oauth` 쿠키(httpOnly, `SameSite=Lax`, 10분, path `/api/v1/integrations/x/callback`, 값 = 별도 난수)를 심고, callback 에서 Redis 에 둔 값과 같은지 본다.
+- 사용자가 X 화면에서 취소하면 `code` 대신 `error` 가 온다 → 저장하지 않고 설정 화면으로 돌려보낸다.
+- 인증 코드는 **30초** 안에 토큰으로 바꿔야 한다. access token 수명은 2시간.
 - 토큰은 응답·로그에 절대 내보내지 않는다. 클라이언트 ID·시크릿, 암호화 키는 `application-secret.properties`·환경변수.
-- access token 은 짧게 만료된다 → `refresh_token` 으로 갱신, 갱신 실패 시 연결 해제 상태로.
+- access token 은 2시간 뒤 만료된다 → `refresh_token` 으로 갱신, 갱신 실패 시 연결 해제 상태로.
 
 ### 14.5 비용 안전장치 (기능보다 먼저 만든다)
 
 | # | 장치 | 내용 |
 |---|---|---|
 | 1 | 기본값 Fake | `integration.x.client` 기본 `fake`. 실제 API 는 설정을 바꿨을 때만 |
-| 2 | 소액 선불 | 크레딧은 $5~10 만 충전, **자동 충전 끔**. 충전액이 곧 최대 손실 |
+| 2 | 소액 선불 | 크레딧은 $5~10 만 충전, **자동 충전 끔** + 콘솔의 **Spending limit** 설정. 이 둘이 최대 손실을 정한다 |
 | 3 | 우리 쪽 일일 상한 | 서버 전체 X 호출 하루 100회(설정값). 넘으면 `429 X_RATE_LIMITED`. X 의 한도(15분 180회)보다 **우리 상한이 먼저** 걸린다 |
 | 4 | **자동 재시도 금지** | X 호출이 실패하면 서버도 프론트도 다시 부르지 않는다. 사용자가 "다시 시도" 를 눌러야만. (알림 서비스의 `requeue` 무한 반복과 같은 일을 처음부터 막는다) |
 | 5 | 캐시·크기 | 사용자별 60초 캐시, 한 번에 10개(`size` 최대 20), X 탭 자동 새로고침 없음 |

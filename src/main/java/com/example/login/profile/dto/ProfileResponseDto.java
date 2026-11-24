@@ -1,6 +1,6 @@
-package com.example.login.profile;
+package com.example.login.profile.dto;
 
-import com.example.login.user.Users;
+import com.example.login.user.entity.Users;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;

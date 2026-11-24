@@ -1,5 +1,6 @@
-package com.example.login.follow;
+package com.example.login.follow.controller;
 
+import com.example.login.follow.service.FollowService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;

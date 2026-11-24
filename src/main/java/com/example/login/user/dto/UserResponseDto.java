@@ -1,5 +1,6 @@
-package com.example.login.user;
+package com.example.login.user.dto;
 
+import com.example.login.user.entity.Users;
 import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
