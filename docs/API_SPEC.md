@@ -447,7 +447,7 @@ X 방식을 따른다. **답글도 게시글**이며, `parentId` 로 관계를 �
 
 | 필드 | 규칙 |
 |---|---|
-| content | 필수(공백 불가) |
+| content | 필수(공백 불가), **1000자 이하** → `400 VALIDATION_ERROR`. 답글·인용·수정도 같다 |
 | imageUrl | 선택. 📝 `imageUrls` 가 오면 무시한다 |
 | imageUrls | 📝 선택. 최대 4개, 각 255자 이하 (§6.11) |
 
@@ -463,7 +463,7 @@ X 방식을 따른다. **답글도 게시글**이며, `parentId` 로 관계를 �
 - **soft delete**: `is_deleted = true` 로만 표시한다. 이후 모든 조회에서 자동으로 제외된다(`@SQLRestriction`).
 - 답글을 지우면 부모의 `commentCount` 를 1 줄인다. 원글을 지워도 그 답글들은 남는다(X 방식). 프론트는 불러오지 못한 부모를 "삭제되었거나 볼 수 없는 게시물"로 표시한다.
 
-응답 `200` `PostResponse` (🚧 `204` 권장). 에러: `403`, `404`.
+응답 `204` (본문 없음). 에러: `403`, `404`.
 
 ### 6.5 답글 작성 `POST /posts/{postId}/replies`
 
@@ -552,7 +552,7 @@ X 방식을 따른다. **답글도 게시글**이며, `parentId` 로 관계를 �
 | 허용 | `image/png`, `image/jpeg`, `image/gif`, `image/webp`, 5MB 이하 |
 | 응답 `201` | `{ "url": "/api/v1/images/2f1c….png" }` (255자 이하, `posts.image_url` 에 그대로 저장) |
 | 조회 | `GET /images/{fileName}` 이 파일을 돌려준다 |
-| 에러 | `400 VALIDATION_ERROR` (형식·크기), `413` (요청 크기 초과) |
+| 에러 | `400 INVALID_IMAGE` (형식·빈 파일), `400 VALIDATION_ERROR` (파일 없음), `413 FILE_TOO_LARGE` (5MB 초과), 조회 `404 IMAGE_NOT_FOUND` |
 
 - 파일 이름은 서버가 UUID 로 새로 짓는다. 사용자가 보낸 이름을 경로에 쓰면 `../` 로 다른 폴더에 쓸 수 있다.
 - 확장자·Content-Type 은 믿지 말고 허용 목록과 비교한다.
@@ -964,7 +964,7 @@ X 와 Threads 를 섞는다.
 |---|---|---|
 | posts 인덱스 | `(parent_id, id)` | 답글 목록 |
 | posts 인덱스 | `(user_id, id)` | 프로필 탭, 피드 재구성 |
-| posts | `content` 를 TEXT 또는 VARCHAR(1000) | 기본 255자는 짧음 |
+| posts | `content` VARCHAR(1000) (2026-11-24 결정) | 기본 255자는 짧음. `ddl-auto=update` 는 기존 컬럼 길이를 안 바꾸므로 `alter table posts modify content varchar(1000)` 직접 실행 |
 | posts | `repost_count INT NOT NULL DEFAULT 0` | 재게시 수 |
 | reposts | id, user_id, post_id, created_at / unique(user_id, post_id), index(user_id, id) | 재게시 |
 | posts | `quote_id BIGINT NULL`, `quote_count INT NOT NULL DEFAULT 0`, 인덱스 `(quote_id, id)` | 인용 재게시 (§6.10) |
