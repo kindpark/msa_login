@@ -57,6 +57,10 @@ public class UsersController {
     public ResponseEntity<List<UserResponseDto>> getUsersByIds(@RequestParam(required = false) List<Long> ids){
         return ResponseEntity.ok(usersService.getUsersByIds(ids));
     }
-    // 본인이 팔로우 중인 유저 조회
-
+    // 추가: 핸들로 단건 조회
+    @GetMapping("/handle/{handle}")
+    public ResponseEntity<UserResponseDto> getUserByHandle(@PathVariable String handle) {
+        UserResponseDto response = usersService.getUserByHandle(handle);
+        return ResponseEntity.ok(response);
+    }
 }

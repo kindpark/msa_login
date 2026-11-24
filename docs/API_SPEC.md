@@ -279,7 +279,7 @@
 ### 4.1 회원가입 `POST /users/signup`
 
 ```json
-{ "email": "a@example.com", "password": "password123", "nickname": "tester" }
+{ "email": "a@example.com", "password": "password123", "nickname": "tester", "handle": "sns_user1" }
 ```
 
 | 필드 | 규칙 |
@@ -287,10 +287,11 @@
 | email | 필수, 이메일 형식, 100자 이하, 중복 불가 |
 | password | 필수, 8~72자 (BCrypt 한계 72바이트) |
 | nickname | 필수, 50자 이하 |
+| handle | 📝 필수, 4~15자, 영문 소문자·숫자·`_`, 첫 글자는 영문 (`^[a-z][a-z0-9_]{3,14}$`), 중복 불가. 대문자는 프론트가 소문자로 바꿔 보낸다 |
 
 응답 `200` 문자열 `"회원가입 완료"` (🚧 §10: `201` + `{ "id" }` 로 변경 권장)
 
-에러: `400 VALIDATION_ERROR`, `409 DUPLICATE_EMAIL`
+에러: `400 VALIDATION_ERROR`, `409 DUPLICATE_EMAIL`, 📝 `409 DUPLICATE_HANDLE`
 
 ### 4.2 내 정보 `GET /users/me`
 
@@ -788,6 +789,7 @@ X 와 Threads 를 섞는다.
 | PATCH | `/users/me` | 프로필 수정 |
 | GET | `/users/{userId}/posts?tab=posts\|replies\|reposts\|media&cursor=&size=` | 탭 목록 (`{ posts, nextCursor }`) |
 | GET | `/users/{userId}/posts/count` | 글 수 `{ "count": 57 }` (원글 + 답글 + 인용. 재게시는 posts 행이 아니라 제외, 삭제된 글 제외). **post-feed** 가 주인 |
+| GET | `/users/handle/{handle}` | @아이디로 사용자 찾기 → `PublicUser` (§4.3 한 명 모양). 없거나 탈퇴했으면 `404 USER_NOT_FOUND` |
 | GET | `/users/{userId}/followers?cursor=&size=` | 팔로워 (공개) |
 | GET | `/users/me/followings?cursor=&size=` | 팔로잉 (본인만) |
 
@@ -826,7 +828,7 @@ X 와 Threads 를 섞는다.
 
 | 필드 | 규칙 |
 |---|---|
-| handle | 4~15자, 영문 소문자·숫자·`_`, 중복 불가 → `409 DUPLICATE_HANDLE`. 지울 수 없음 |
+| handle | 4~15자, 영문 소문자·숫자·`_`, **첫 글자는 영문** (`^[a-z][a-z0-9_]{3,14}$`), 중복 불가 → `409 DUPLICATE_HANDLE`. 지울 수 없음 |
 | nickname | 2~50자. 지울 수 없음 |
 | bio | 255자 이하 |
 | profileImageUrl, bannerImageUrl | 500자 이하 (`@Size(max = 500)`). http(s) 주소 또는 업로드 주소 `/api/v1/images/...` |

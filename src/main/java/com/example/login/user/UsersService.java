@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -75,6 +76,14 @@ public class UsersService {
     // 임시
     public boolean existsById(Long userId){
         return usersRepository.existsById(userId);
+    }
+
+    @Transactional
+    public UserResponseDto getUserByHandle(String handle){
+        Users user = usersRepository.findByHandle(handle)
+                .orElseThrow(() -> new BusinessException(ErrorCode.USER_NOT_FOUND));
+
+        return UserResponseDto.from(user);
     }
 
     // 프론트엔드는 100개씩 나눠서 요청한다. 그보다 많으면 한 번에 너무 큰 IN 쿼리가 나가므로 막는다.
