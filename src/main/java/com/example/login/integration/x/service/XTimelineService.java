@@ -2,6 +2,7 @@ package com.example.login.integration.x.service;
 
 import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
+import com.example.login.integration.x.Provider;
 import com.example.login.integration.x.client.XTimelineClient;
 import com.example.login.integration.x.dto.XConnectionStatusResponse;
 import com.example.login.integration.x.dto.XTimelineResponse;
@@ -30,9 +31,6 @@ import java.util.concurrent.TimeoutException;
 @RequiredArgsConstructor
 public class XTimelineService {
 
-    // X 프로바이더 추가
-    private static final String PROVIDER_X = "X";
-
     private final XTimelineClient xTimelineClient;
     private final ExternalAccountRepository externalAccountRepository;
     private final StringRedisTemplate redisTemplate;
@@ -48,33 +46,18 @@ public class XTimelineService {
 
     @Transactional(readOnly = true)
     public XConnectionStatusResponse getConnectionStatus(Long userId) {
-        return externalAccountRepository.findByUserIdAndProvider(userId, PROVIDER_X)
+        return externalAccountRepository.findByUserIdAndProvider(userId, Provider.X.getProvider())
                 .map(account -> new XConnectionStatusResponse(true, account.getUsername()))
                 .orElseGet(() -> new XConnectionStatusResponse(false, null));
     }
 
-    public XConnectionStatusResponse connect(Long userId) {
-        return externalAccountRepository.findByUserIdAndProvider(userId, PROVIDER_X)
-                .map(account -> new XConnectionStatusResponse(true, account.getUsername()))
-                .orElseGet(() -> {
-                    try {
-                        ExternalAccount saved = externalAccountRepository.save(ExternalAccount.createFakeX(userId));
-                        return new XConnectionStatusResponse(true, saved.getUsername());
-                    } catch (DataIntegrityViolationException e) {
-                        // 동시 요청으로 이미 생성된 경우 재조회하여 정상 응답
-                        ExternalAccount existing = externalAccountRepository.findByUserIdAndProvider(userId, PROVIDER_X)
-                                .orElseThrow();
-                        return new XConnectionStatusResponse(true, existing.getUsername());
-                    }
-                });
-    }
     @Transactional
     public void disconnect(Long userId) {
-        externalAccountRepository.deleteByUserIdAndProvider(userId, PROVIDER_X);
+        externalAccountRepository.deleteByUserIdAndProvider(userId, Provider.X.getProvider());
     }
     public XTimelineResponse getTimeline(Long userId, String cursor, int size){
         // DB 행 존재 여부로 연동 확인 (없으면 409 X_NOT_CONNECTED)
-        ExternalAccount account = externalAccountRepository.findByUserIdAndProvider(userId, PROVIDER_X)
+        ExternalAccount account = externalAccountRepository.findByUserIdAndProvider(userId, Provider.X.getProvider())
                 .orElseThrow(() -> new BusinessException(ErrorCode.X_NOT_CONNECTED));
 
         String normalizedCursor = (cursor==null || cursor.isBlank())

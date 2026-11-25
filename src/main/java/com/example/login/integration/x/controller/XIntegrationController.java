@@ -1,6 +1,7 @@
 package com.example.login.integration.x.controller;
 
 
+import com.example.login.integration.x.XConnector;
 import com.example.login.integration.x.dto.XConnectionStatusResponse;
 import com.example.login.integration.x.dto.XTimelineResponse;
 import com.example.login.integration.x.service.XTimelineService;
@@ -15,7 +16,9 @@ import org.springframework.web.bind.annotation.*;
 public class XIntegrationController {
 
     private final XTimelineService xTimelineService;
-// 인증된 사용자 ID 추출 부분은 프로젝트의 시큐리티 설정에 맞게 연결
+    private final XConnector xConnector;
+
+    // 인증된 사용자 ID 추출 부분은 프로젝트의 시큐리티 설정에 맞게 연결
     //우리는 userId인데, 여기서도 이게 맞는지 의문
     @GetMapping
     public ResponseEntity<XConnectionStatusResponse> getConnectionStatus(
@@ -23,12 +26,12 @@ public class XIntegrationController {
     ) {
         return ResponseEntity.ok(xTimelineService.getConnectionStatus(userId));
     }
-
+    //
     @PostMapping("/connect")
     public ResponseEntity<XConnectionStatusResponse> connect(
             @AuthenticationPrincipal Long userId
-    ) {
-        return ResponseEntity.ok(xTimelineService.connect(userId));
+    ){// fake: 기존 동작 그대로
+        return ResponseEntity.ok(xConnector.connect(userId).response());
     }
     @DeleteMapping
     public ResponseEntity<Void> disconnect(
