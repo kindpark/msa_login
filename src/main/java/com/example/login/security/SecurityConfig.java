@@ -1,8 +1,6 @@
 package com.example.login.security;
 
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -16,7 +14,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.CorsUtils;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
@@ -56,7 +53,10 @@ public class SecurityConfig {
                                         "/api/v1/users/find-id",
                                         "/api/v1/users/password-reset",
                                         "/api/v1/users/password-reset/confirm").permitAll()
-                                .requestMatchers("/internal/**").permitAll()
+                                // X 콜백은 로그인 쿠키 없이 온다(SameSite=Strict). 대신 state 와 x_oauth 쿠키로 확인한다.
+                                // 이 주소 하나만 연다. /integrations/** 전체를 열면 안 된다
+                                .requestMatchers("/internal/**",
+                        "/api/v1/integrations/x/callback").permitAll()
                                 .requestMatchers("/error").permitAll()
                         // 그 외 모든 요청은 인증 필요
                         .anyRequest().authenticated()

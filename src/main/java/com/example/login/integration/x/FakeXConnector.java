@@ -33,4 +33,11 @@ public class FakeXConnector implements XConnector{
                 });
         return new ConnectResult(status, null);
     }
+
+    // fake 는 X 로 보내지 않으므로 콜백이 올 일이 없다 -> 와도 실패로 처리
+    @Override
+    public boolean complete(String code, String state, String browserToken) {
+        return false;
+
+    }
 }

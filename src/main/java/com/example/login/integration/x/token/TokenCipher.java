@@ -11,6 +11,13 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
 
+/**
+ * X 토큰을 DB 에 잠가 두는 금고.  토큰 = 귀중품, secretKey = 열쇠, IV = 잠글 때마다 바뀌는 번호표.
+ *  - AES : 같은 열쇠로 잠그고 연다(대칭키).  GCM : 잠그면서 봉인도 붙여, 누가 바꾸면 열 때 예외가 난다
+ *  - 비밀번호는 비교만 하면 되니 되돌릴 수 없는 BCrypt, 토큰은 X 에 보내야 하니 되돌릴 수 있는 암호화
+ *  - Base64 는 바이트를 글자로 적는 방법일 뿐 암호화가 아니다
+ *  - 열쇠를 잃거나 바꾸면 저장된 토큰을 열 수 없다 -> X 를 다시 연결해야 한다
+ */
 @Component
 @ConditionalOnProperty(name = "integration.x.client", havingValue = "official")
 public class TokenCipher {
@@ -24,6 +31,7 @@ public class TokenCipher {
     // application.yml에 설정된 32바이트(256비트) 비밀키 주입
     public TokenCipher(@Value("${integration.x.token-key}") String base64Key) {
         byte[] keyBytes = Base64.getDecoder().decode(base64Key);
+        // 잘못된 키를 나중에 알지 않고 앱이 켜질 때 바로 알도록
         if (keyBytes.length != 32) {
             throw new IllegalArgumentException("AES-256을 위해 키 길이는 반드시 32바이트여야 합니다.");
         }
@@ -34,9 +42,11 @@ public class TokenCipher {
     public String encrypt(String plainToken) {
         if (plainToken == null) return null;
         try {
+            // 같은 키로 IV 를 재사용하면 내용이 드러나고 봉인(GCM)도 깨진다 -> 매번 새로. IV 자체는 비밀이 아니다
             byte[] iv = new byte[GCM_IV_LENGTH];
             new SecureRandom().nextBytes(iv); // 매번 새로운 랜덤 IV 생성
 
+            // Cipher 는 여러 요청이 같이 쓰면 섞인다 -> 필드에 두지 않고 매번 만든다
             Cipher cipher = Cipher.getInstance(ALGORITHM);
             GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
             cipher.init(Cipher.ENCRYPT_MODE, secretKey, spec);
@@ -70,6 +80,7 @@ public class TokenCipher {
             GCMParameterSpec spec = new GCMParameterSpec(GCM_TAG_LENGTH, iv);
             cipher.init(Cipher.DECRYPT_MODE, secretKey, spec);
 
+            // 암호문이 바뀌었거나 열쇠가 다르면 여기서 예외 -> 아래 catch
             byte[] decrypted = cipher.doFinal(encrypted);
             return new String(decrypted, StandardCharsets.UTF_8);
         } catch (Exception e) {
