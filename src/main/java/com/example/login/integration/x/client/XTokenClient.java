@@ -2,6 +2,7 @@ package com.example.login.integration.x.client;
 
 import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
+import com.example.login.integration.x.dto.XUserInfo;
 import com.example.login.integration.x.dto.XTokenResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,6 +74,32 @@ public class XTokenClient {
         }catch(RestClientException e){
             log.warn("X OAuth 토큰이 네트워크, 클라이언트 통신 에러로 인해 발급 실패 : {}", e.getClass().getSimpleName());
             throw new BusinessException(ErrorCode.X_OAUTH_INVALID);
+        }
+    }
+
+    public XUserInfo getMyInfoForX(String accessToken) {
+        try{
+            // Get 시작
+            XUserInfo response = restClient.get()
+                    .uri("https://api.x.com/2/users/me")
+                    .headers(headers -> headers.setBearerAuth(accessToken)) // bearer 인증
+                    .retrieve() //응답을 받는다.
+                    .body(XUserInfo.class);
+            // 응답이 비었을때, data 속 정보들이 비었을때 실패 처리를 한다.
+            if(response == null
+                    || response.data() == null
+                    || response.data().id() == null
+                    || response.data().id().isBlank()) {
+                throw new BusinessException(ErrorCode.X_OAUTH_INVALID);
+            }
+            return response;
+        }catch(RestClientResponseException e){
+            // 응답 본문은 보안상의 이유로 남기지 않는다.
+            log.warn("X 유저 정보 인증 실패. httpStatus : {}", e.getStatusCode());
+            throw new BusinessException(ErrorCode.X_OAUTH_INVALID);
+        }catch(RestClientException e){
+            log.warn("X 유저 정보가, 네트워크 등 기타 요인으로 인해 인증 실패 : {}", e.getClass().getSimpleName());
+            throw new BusinessException(ErrorCode.X_UNAVAILABLE);
         }
     }
 }

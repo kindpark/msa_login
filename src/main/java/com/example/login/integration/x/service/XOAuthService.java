@@ -61,11 +61,6 @@ public class XOAuthService {
         this.clientId =clientId;
         this.redirectUrl = redirectUrl;
     }
-    // static: 이 객체의 필드(redis, clientId)를 쓰지 않는 도구라서.  private: 이 클래스 안에서만 쓰므로.
-    // 32바이트 -> Base64Url 로 적으면 43글자. codeVerifier 는 43글자 이상이어야 한다(PKCE 규칙).
-    // 바이트 수와 글자 수는 다르다. 결과를 substring 으로 자르면 그만큼 추측하기 쉬워진다.
-    // Base64Url: 일반 Base64 의 + / 를 - _ 로 바꾼 것. 주소에 넣어도 깨지지 않는다. withoutPadding 은 끝의 = 를 뺀다.
-    // nextBytes 는 값을 돌려주지 않고 배열을 채운다.
     // 랜덤 토큰값을 제공한다.
     // 부를때마다 다른 걸 도출해내야 하기 때문에 합치면 안됨(여러번 쓰일수도)
     private static String getRandomToken(){
