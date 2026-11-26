@@ -41,8 +41,8 @@ public class OfficialXClient implements XTimelineClient{
             TokenCipher tokenCipher
     ){
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(Duration.ofSeconds(3));
-        requestFactory.setReadTimeout(Duration.ofSeconds(1));
+        requestFactory.setConnectTimeout(Duration.ofSeconds(1));
+        requestFactory.setReadTimeout(Duration.ofSeconds(2));
         this.externalAccountRepository = externalAccountRepository;
         this.tokenCipher = tokenCipher;
         this.restClient = RestClient
@@ -77,6 +77,7 @@ public class OfficialXClient implements XTimelineClient{
                             .scheme("https")
                             .host("api.x.com")
                             .path("/2/users/{id}/timelines/reverse_chronological")
+                            .queryParam("exclude", "replies,retweets")
                             .queryParam("max_results", pageSize)
                             .queryParam("tweet.fields", "created_at,author_id")
                             .queryParam("expansions", "author_id")
