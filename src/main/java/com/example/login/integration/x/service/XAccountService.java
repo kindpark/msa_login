@@ -2,6 +2,7 @@ package com.example.login.integration.x.service;
 
 import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
+import com.example.login.integration.x.Provider;
 import com.example.login.integration.x.dto.XTokenResponse;
 import com.example.login.integration.x.dto.XUserInfo;
 import com.example.login.integration.x.entity.ExternalAccount;
@@ -40,6 +41,17 @@ public class XAccountService {
                 refreshTokenEncrypt,
                 LocalDateTime.now().minusSeconds(60).plusSeconds(response.expiresIn())
         ));
+
+    }
+    @Transactional
+    public void updateTokens(Long userId, XTokenResponse response){
+        ExternalAccount account = externalAccountRepository.findByUserIdAndProvider(userId, Provider.X.getProvider())
+                .orElseThrow(()-> new BusinessException(ErrorCode.X_OAUTH_INVALID));
+
+        String access = tokenCipher.encrypt(response.accessToken());
+        String refresh = tokenCipher.encrypt(response.refreshToken());
+
+        account.setTokens(access, refresh, LocalDateTime.now().minusSeconds(60).plusSeconds(response.expiresIn()));
 
     }
 }

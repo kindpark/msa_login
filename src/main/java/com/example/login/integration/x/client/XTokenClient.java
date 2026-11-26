@@ -102,4 +102,39 @@ public class XTokenClient {
             throw new BusinessException(ErrorCode.X_UNAVAILABLE);
         }
     }
+    public XTokenResponse refresh(String refreshToken){
+        MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+        form.add("grant_type", "refresh_token");
+        form.add("refresh_token", refreshToken);
+
+        try{
+            // POST로 시작.
+            XTokenResponse response = restClient.post()
+                    .uri(TOKEN_URL)
+                    .headers(headers -> headers.setBasicAuth(clientId, clientSecret)) // basic 인증
+                    .contentType(MediaType.APPLICATION_FORM_URLENCODED) // 폼이라고 알린다.
+                    .body(form) // 폼 본문
+                    .retrieve() //응답을 받는다.
+                    .body(XTokenResponse.class);
+            // 응답이 비었을때, 연결 토큰이 비었을때 실패 처리를 한다.
+            if(response == null || response.accessToken() == null || response.accessToken().isBlank()) {
+                throw new BusinessException(ErrorCode.X_OAUTH_INVALID);
+            }
+            return response;
+        }catch(RestClientResponseException e){
+            // 응답 본문은 보안상의 이유로 남기지 않는다.
+            if(e.getStatusCode().is4xxClientError()){
+                log.warn("X OAuth 토큰 갱신 실패. httpStatus : {}", e.getStatusCode());
+                throw new BusinessException(ErrorCode.X_TOKEN_EXPIRED);
+            }
+            else{
+                log.warn("X OAuth 토큰이 통신, 응답 실패로 인해 갱신 실패 : {}", e.getClass().getSimpleName());
+                throw new BusinessException(ErrorCode.X_UNAVAILABLE);
+            }
+        }catch(RestClientException e){
+            log.warn("X OAuth 토큰이 통신, 응답 실패로 인해 갱신 실패 : {}", e.getClass().getSimpleName());
+            throw new BusinessException(ErrorCode.X_UNAVAILABLE);
+        }
+
+    }
 }

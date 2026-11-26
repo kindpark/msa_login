@@ -3,12 +3,10 @@ package com.example.login.integration.x.client;
 import com.example.login.common.BusinessException;
 import com.example.login.common.ErrorCode;
 import com.example.login.integration.x.Provider;
-import com.example.login.integration.x.dto.XAuthor;
-import com.example.login.integration.x.dto.XPost;
-import com.example.login.integration.x.dto.XResponse;
-import com.example.login.integration.x.dto.XTimelineResponse;
+import com.example.login.integration.x.dto.*;
 import com.example.login.integration.x.entity.ExternalAccount;
 import com.example.login.integration.x.repository.ExternalAccountRepository;
+import com.example.login.integration.x.service.XAccountService;
 import com.example.login.integration.x.token.TokenCipher;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -35,16 +33,22 @@ public class OfficialXClient implements XTimelineClient{
     private final ExternalAccountRepository externalAccountRepository;
     private final TokenCipher tokenCipher;
     private final RestClient restClient;
+    private final XTokenClient xTokenClient;
+    private final XAccountService xAccountService;
     private static final String X_HOST = "https://x.com/";
     public OfficialXClient(
             ExternalAccountRepository externalAccountRepository,
-            TokenCipher tokenCipher
+            TokenCipher tokenCipher,
+            XAccountService xAccountService,
+            XTokenClient xTokenClient
     ){
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
         requestFactory.setConnectTimeout(Duration.ofSeconds(1));
         requestFactory.setReadTimeout(Duration.ofSeconds(2));
         this.externalAccountRepository = externalAccountRepository;
         this.tokenCipher = tokenCipher;
+        this.xAccountService = xAccountService;
+        this.xTokenClient = xTokenClient;
         this.restClient = RestClient
                 .builder()
                 .requestFactory(requestFactory)
@@ -64,12 +68,23 @@ public class OfficialXClient implements XTimelineClient{
         // account 확인
         ExternalAccount account = externalAccountRepository.findByUserIdAndProvider(userId, Provider.X.getProvider())
                 .orElseThrow(() -> new BusinessException(ErrorCode.X_NOT_CONNECTED));
+
+        String accessToken;
         // 토큰이 만료되었다면 자격 상실 에러 보냄
         if (account.getTokenExpiresAt() != null && account.getTokenExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new BusinessException(ErrorCode.X_TOKEN_EXPIRED);
+            String refer = account.getRefreshToken();
+            if (refer == null) {
+                throw new BusinessException(ErrorCode.X_TOKEN_EXPIRED);
+            }
+            // 토큰을 복호화한다.
+            String decryptToken = tokenCipher.decrypt(refer);
+            // 새로운 토큰을 받는다. 나는 토큰을 그대로 줘버려서 새로운 토큰을 받을수가 없었다.
+            XTokenResponse newToken = xTokenClient.refresh(decryptToken);
+            xAccountService.updateTokens(userId, newToken);
+            accessToken = newToken.accessToken();
+        }else{
+            accessToken = tokenCipher.decrypt(account.getAccessToken());
         }
-        // 토큰 복호화
-        String accessToken = tokenCipher.decrypt(account.getAccessToken());
         XResponse response;
         try {
             response = restClient.get()
@@ -77,7 +92,6 @@ public class OfficialXClient implements XTimelineClient{
                             .scheme("https")
                             .host("api.x.com")
                             .path("/2/users/{id}/timelines/reverse_chronological")
-                            .queryParam("exclude", "replies,retweets")
                             .queryParam("max_results", pageSize)
                             .queryParam("tweet.fields", "created_at,author_id")
                             .queryParam("expansions", "author_id")
@@ -90,6 +104,7 @@ public class OfficialXClient implements XTimelineClient{
                     .headers(headers -> headers.setBearerAuth(accessToken)) // bearer 인증
                     .retrieve() //응답을 받는다.
                     .body(XResponse.class);
+
         // 로그 규칙: 토큰·응답 본문은 남기지 않는다(본문에 사용자 정보가 섞일 수 있다). 누구의 요청인지(userId)와 상태 코드만.
         }catch(HttpClientErrorException.Unauthorized e){
             // 401: 토큰이 만료·폐기됨 (사용자가 X 에서 앱 권한을 끊은 경우 포함) -> 다시 연결해야 한다
@@ -111,6 +126,12 @@ public class OfficialXClient implements XTimelineClient{
         String cur = (response != null && response.meta() != null)
                 ? response.meta().next_token()
                 : null;
+        // 확인용: 받은 글 수(=과금 개수)와 다음 페이지 유무. 토큰 값 자체는 남기지 않는다
+        log.info("X 타임라인 응답 userId={}, 요청={}개, 받은 글={}개, 이전 커서={}, next_token={}",
+                userId, pageSize,
+                (response == null || response.data() == null) ? 0 : response.data().size(),
+                cursor != null ? "있음" : "없음(첫 페이지)",
+                cur != null ? "있음" : "없음");
         if(response == null
                     || response.data() == null
                     || response.data().isEmpty()) {

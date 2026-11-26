@@ -84,4 +84,16 @@ public class ExternalAccount {
                 .tokenExpiresAt(tokenExpiresAt)
                 .build();
     }
+    public void setTokens(String accessToken, String refreshToken, LocalDateTime tokenExpiresAt){
+        // 토큰이 없으면, 기본값을 넣어줘야함
+        // 기본값을 넣는것을 따로 처리만 하고 response null 처리를 한다.
+        if(refreshToken == null){
+            this.accessToken = accessToken;
+            this.tokenExpiresAt = tokenExpiresAt;
+            return;
+        }
+        this.accessToken = accessToken;
+        this.refreshToken = refreshToken;
+        this.tokenExpiresAt = tokenExpiresAt;
+    }
 }
