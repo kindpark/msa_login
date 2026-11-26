@@ -44,15 +44,20 @@ public class ExternalAccount {
     @Column(name = "token_expires_at")
     private LocalDateTime tokenExpiresAt;
 
+    @Column(nullable = true, length = 30)
+    private String externalUserId;
+
     @Builder
     public ExternalAccount(Long userId, String provider, String username,
-                           String accessToken, String refreshToken, LocalDateTime tokenExpiresAt) {
+                           String accessToken, String refreshToken, LocalDateTime tokenExpiresAt,
+                           String externalUserId) {
         this.userId = userId;
         this.provider = provider;
         this.username = username;
         this.accessToken = accessToken;
         this.refreshToken = refreshToken;
         this.tokenExpiresAt = tokenExpiresAt;
+        this.externalUserId = externalUserId;
     }
 
     public static ExternalAccount createFakeX(Long userId) {
@@ -60,6 +65,23 @@ public class ExternalAccount {
                 .userId(userId)
                 .provider("X")
                 .username("fake_user")
+                .build();
+    }
+
+    public static ExternalAccount createX(Long userId,
+                        String username,
+                        String externalUserId,
+                        String accessToken,
+                        String refreshToken,
+                        LocalDateTime tokenExpiresAt){
+        return ExternalAccount.builder()
+                .userId(userId)
+                .provider("X")
+                .username(username)
+                .externalUserId(externalUserId)
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenExpiresAt(tokenExpiresAt)
                 .build();
     }
 }

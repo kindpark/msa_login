@@ -8,12 +8,12 @@ import com.example.login.integration.x.dto.XTokenResponse;
 import com.example.login.integration.x.dto.XUserInfo;
 import com.example.login.integration.x.entity.ExternalAccount;
 import com.example.login.integration.x.repository.ExternalAccountRepository;
+import com.example.login.integration.x.service.XAccountService;
 import com.example.login.integration.x.service.XOAuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Component;
-
 import java.util.Optional;
 
 @Component
@@ -23,6 +23,7 @@ public class OfficialXConnector implements XConnector{
     private final XOAuthService xoAuthService;
     private final ExternalAccountRepository externalAccountRepository;
     private final XTokenClient xTokenClient;
+    private final XAccountService xAccountService;
     @Override
     public ConnectResult connect(Long userId) {
         Optional<ExternalAccount> status =  externalAccountRepository.findByUserIdAndProvider(userId, Provider.X.getProvider());
@@ -49,8 +50,9 @@ public class OfficialXConnector implements XConnector{
             // 웹 계층까지 올라가면 안된다. 쓰지도 않는 곳에 비밀값이 퍼지기 때문이다.
             XTokenResponse response = xTokenClient.exchangeCode(code, verified.codeVerifier());
             XUserInfo userInfo = xTokenClient.getMyInfoForX(response.accessToken());
+            xAccountService.save(verified.userId(), response, userInfo);
             return true;
-        } catch (BusinessException e) {
+        } catch (BusinessException | DataIntegrityViolationException e) {
             // 여기서 잡지 않으면 GlobalExceptionHandler 가 JSON 에러를 보내 사용자가 글자만 있는 화면에 갇힌다
             return false;
         }
