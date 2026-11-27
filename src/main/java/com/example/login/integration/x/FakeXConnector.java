@@ -40,4 +40,9 @@ public class FakeXConnector implements XConnector{
         return false;
 
     }
+
+    // fake 행에는 X 토큰이 없다 -> X 에 알릴 것도 없다
+    @Override
+    public void revoke(Long userId) {
+    }
 }

@@ -21,4 +21,8 @@ public interface XConnector {
 
     // X 에서 돌아왔을 때. 성공/실패만 알려 주고, 어디로 이동할지는 컨트롤러가 정한다
     boolean complete(String code, String state, String browserToken);
+
+    // 연결 해제 직전에 부른다. X 쪽 정리(토큰 폐기)만 하고, 우리 DB 행은 지우지 않는다(행 삭제는 XTimelineService.disconnect).
+    // 실패해도 예외를 던지지 않는다 -> 사용자는 X 상태와 관계없이 언제든 끌 수 있어야 한다
+    void revoke(Long userId);
 }

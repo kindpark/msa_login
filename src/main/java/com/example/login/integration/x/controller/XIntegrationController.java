@@ -66,6 +66,9 @@ public class XIntegrationController {
     public ResponseEntity<Void> disconnect(
             @AuthenticationPrincipal Long userId
     ) {
+        // 1) X 쪽 토큰 폐기 (official 만. 실패해도 예외 없음)  2) 우리 행 삭제.
+        // 순서를 바꾸면 지운 행에서 토큰을 꺼낼 수 없다. 둘을 한 트랜잭션에 묶지 않는 것은 X 호출 동안 커넥션을 잡지 않으려고
+        xConnector.revoke(userId);
         xTimelineService.disconnect(userId);
         return ResponseEntity.noContent().build(); // 204 No Content
     }
